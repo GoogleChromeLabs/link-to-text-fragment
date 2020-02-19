@@ -33,6 +33,15 @@
       });
     } else if (message === 'success') {
       console.log(request.data);
+      const style = document.createElement('style');
+      document.head.append(style);
+      const sheet = style.sheet;
+      sheet.insertRule(`
+        ::selection {
+          color: #000 !important;
+          background-color: #ffff00 !important;
+        }`);
+      setTimeout(() => style.remove(), 1000);
     } else if (message === 'failure') {
       alert(chrome.i18n.getMessage('link_failure'));
     }

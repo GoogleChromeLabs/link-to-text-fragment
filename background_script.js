@@ -61,7 +61,7 @@
       console.log('after shift');
       console.log(wordsAfter);
       console.log('new after "' + newAfter + '"');
-      after = `${after ? `${after}.?` : ''}${newAfter}`;
+      after = `${after ? `${after} ` : ''}${newAfter}`;
     }
     matches = isUniqueMatch(
       pageText,
@@ -97,7 +97,8 @@
 
   const createURL = async (tabURL, selectedText) => {
     tabURL = new URL(tabURL);
-    let textFragmentURL = `${tabURL.origin}${tabURL.pathname}`;
+    let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${
+        tabURL.hash ? tabURL.hash.replace(/:~:text=.*?$/g, '') : '#'}`;
     const {
       pageText,
       textBeforeSelection,
@@ -121,7 +122,7 @@
     if (matches.length === 1) {
       textStart = encodeURIComponentAndMinus(textStart);
       textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
-      return (textFragmentURL += `#:~:text=${textStart}${textEnd}`);
+      return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
     } else {
       let wordsBefore = (textNodeBeforeSelection
         ? textNodeBeforeSelection.split(/\s+/gmu)
@@ -148,7 +149,7 @@
       after = after ? `,-${encodeURIComponentAndMinus(after)}` : '';
       textStart = encodeURIComponentAndMinus(textStart);
       textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
-      return (textFragmentURL += `#:~:text=${before}${textStart}${textEnd}${after}`);
+      return (textFragmentURL += `:~:text=${before}${textStart}${textEnd}${after}`);
     }
   };
 
