@@ -16,6 +16,7 @@
         focusNode,
         focusOffset
       } = window.getSelection();
+      const closest = anchorNode.parentElement.closest('[id]:not([id=""])');
       sendResponse({
         pageText: trimRemoveDuplicateSpaces(document.body.textContent),
         textBeforeSelection: anchorNode.data.substr(0, anchorOffset).trim(),
@@ -29,7 +30,8 @@
           ? trimRemoveDuplicateSpaces(
               anchorNode.parentNode.nextElementSibling.textContent
             )
-          : ''
+          : '',
+         closestElementFragment: closest ? closest.id : null,
       });
     } else if (message === 'success') {
       console.log(request.data);

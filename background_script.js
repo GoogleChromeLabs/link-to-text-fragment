@@ -18,13 +18,15 @@
     await copyToClipboard(textFragmentURL);
   });
 
+  const escapeRegExp = (s) => {
+    return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  };
+
   const isUniqueMatch = (hayStack, textStart, textEnd = '') => {
-    const needle = textEnd
-      ? new RegExp(`\\b${textStart}.*?${textEnd}\\b`, 'gimus')
-      : new RegExp(`\\b${textStart}\\b`, 'giu');
+    const needle = new RegExp(`${textStart}${textEnd}`, 'gimus');
     console.log('————————————————');
-    console.log(needle.source);
-    console.log([...hayStack.matchAll(needle)]);
+    console.log('RegExp:', needle.source);
+    console.log('Matches:', [...hayStack.matchAll(needle)]);
     console.log('————————————————');
     return (matches = [...hayStack.matchAll(needle)]);
   };
@@ -37,36 +39,28 @@
     wordsBefore,
     wordsAfter,
     before = '',
-    after = ''
+    after = '',
+    coin = true,
   ) => {
-    console.log('start "' + textStart + '"');
-    console.log('end "' + textEnd + '"');
-    console.log('wordsbefore "' + wordsBefore.join(',') + '"');
-    console.log('wordsafter "' + wordsAfter.join(',') + '"');
     console.log('before "' + before + '"');
+    console.log('textStart "' + textStart + '"');
+    console.log('textEnd "' + textEnd + '"');
     console.log('after "' + after + '"');
     // We need to add context before or after the needle.
-    if (wordsBefore.length > 0) {
-      console.log('before pop');
-      console.log(wordsBefore);
-      const newBefore = wordsBefore.pop();
-      console.log('after pop');
-      console.log(wordsBefore);
-      console.log('new before "' + newBefore + '"');
+    // Throw a coin to decide each time whether before or after.
+    if (wordsBefore.length > 0 && coin) {
+      const newBefore = escapeRegExp(wordsBefore.pop());
       before = `${newBefore}${before ? ` ${before}` : ''}`;
+      console.log('new before "' + before + '"');
     } else if (wordsAfter.length > 0) {
-      console.log('before shift');
-      console.log(wordsAfter);
-      const newAfter = wordsAfter.shift();
-      console.log('after shift');
-      console.log(wordsAfter);
-      console.log('new after "' + newAfter + '"');
+      const newAfter = escapeRegExp(wordsAfter.shift());
       after = `${after ? `${after} ` : ''}${newAfter}`;
+      console.log('new after "' + after + '"');
     }
     matches = isUniqueMatch(
       pageText,
-      `${before}.?${textStart}`,
-      `${textEnd}.?${after}`
+      `${before ? `${before}.?` : ''}${textStart}`,
+      `${textEnd ? `.*?${textEnd}` : ''}${after ? `.?${after}` : ''}`
     );
     if (matches.length === 1) {
       return {
@@ -74,6 +68,7 @@
         after
       };
     } else if (matches.length === 0) {
+      // This should never happen, but, hey… ¯\_(ツ)_/¯
       return {
         before: false,
         after: false
@@ -87,7 +82,8 @@
       wordsBefore,
       wordsAfter,
       before,
-      after
+      after,
+      Math.random() > 0.5
     );
   };
 
@@ -96,20 +92,17 @@
   };
 
   const createURL = async (tabURL, selectedText) => {
-    tabURL = new URL(tabURL);
-    let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${
-        tabURL.hash ? tabURL.hash.replace(/:~:text=.*?$/g, '') : '#'}`;
     const {
       pageText,
       textBeforeSelection,
       textAfterSelection,
       textNodeBeforeSelection,
-      textNodeAfterSelection
+      textNodeAfterSelection,
+      closestElementFragment,
     } = await getPageTextContent();
-    console.log(textNodeBeforeSelection);
-    console.log(textBeforeSelection);
-    console.log(textAfterSelection);
-    console.log(textNodeAfterSelection);
+    tabURL = new URL(tabURL);
+    let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${
+        closestElementFragment ? `#${closestElementFragment}` : '#'}`;
     const selectedWords = selectedText.split(/\s+/gmu);
     let textStart = selectedText;
     let textEnd = '';
@@ -117,7 +110,7 @@
       textStart = selectedWords[0];
       textEnd = selectedWords.pop();
     }
-    let matches = isUniqueMatch(pageText, textStart, textEnd);
+    let matches = isUniqueMatch(pageText, textStart, `${textEnd ? `.*?${textEnd}` : ''}`);
     // We have a unique match, return it.
     if (matches.length === 1) {
       textStart = encodeURIComponentAndMinus(textStart);
