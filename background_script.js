@@ -1,5 +1,9 @@
 (browser => {
-  // https://wicg.github.io/ScrollToTextFragment/#:~:text=It%20is%20recommended%20that%20text%20snippets%20shorter%20than%20300%20characters%20always%20be%20encoded%20using%20an%20exact%20match.
+  if (!('fragmentDirective' in window.location)) {
+    return;
+  }
+
+  // https://wicg.github.io/ScrollToTextFragment/#:~:text=It%20is%20recommended,a%20range%2Dbased%20match.
   // Experimenting with 100 instead.
   EXACT_MATCH_MAX_LENGTH = 100;
   INNER_CONTEXT_MAX_LENGTH = 2;
@@ -10,10 +14,6 @@
       console.log.apply(this, args);
     }
   };
-
-  if (!('fragmentDirective' in window.location)) {
-    return;
-  }
 
   browser.contextMenus.create({
     title: chrome.i18n.getMessage('copy_link'),
@@ -140,6 +140,7 @@
       // Use the first and the last word of the selection.
       textStart = selectedWords.shift();
       textEnd = selectedWords.pop();
+      // Add inner context at the beginning and the end.
       if (
         selectedText.length > EXACT_MATCH_MAX_LENGTH &&
         INNER_CONTEXT_MAX_LENGTH > 0
@@ -157,22 +158,22 @@
       escapeRegExp(textStart),
       `${textEnd ? `.*?${escapeRegExp(textEnd)}` : ''}`
     );
-    // We have a unique match, return it.
     if (matches.length === 1) {
+      // We have a unique match, return it.
       textStart = encodeURIComponentAndMinus(textStart);
       textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
       return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
-      // We need to add context.
     } else {
-      // The text before/after in the same node as the selected text
-      // combined with the text in the previous/next node.
+      // We need to add context. Therefore, use the text before/after in the
+      // same node as the selected text combined with the text in the
+      // previous/next node.
       const wordsInTextNodeBeforeSelection = textNodeBeforeSelection
         ? textNodeBeforeSelection.split(/\s+/gm)
         : [];
       const wordsBeforeSelection = textBeforeSelection
         ? textBeforeSelection.split(/\s+/gm)
         : [];
-      let wordsBefore = wordsInTextNodeBeforeSelection.concat(
+      const wordsBefore = wordsInTextNodeBeforeSelection.concat(
         wordsBeforeSelection
       );
 
@@ -182,10 +183,11 @@
       const wordsAfterSelection = textAfterSelection
         ? textAfterSelection.split(/\s+/gmu)
         : [];
-      let wordsAfter = wordsAfterSelection.concat(
+      const wordsAfter = wordsAfterSelection.concat(
         wordsInTextNodeAfterSelection
       );
-
+      // Add context either before or after the selected text, depending on
+      // where there is more text.
       const growContextBefore =
         wordsBeforeSelection.length > wordsAfterSelection.length;
 
@@ -255,7 +257,7 @@
         throw new Error('Clipboard permission not granted');
       }
       await navigator.clipboard.writeText(url);
-    } catch (err) {
+    } catch {
       let textArea = document.createElement('textarea');
       document.body.append(textArea);
       textArea.textContent = url;
@@ -263,7 +265,7 @@
       document.execCommand('copy');
       textArea.remove();
     }
-    log(url)
+    log(url);
     await sendMessageToPage('success', url);
   };
 })(window.chrome || window.browser);

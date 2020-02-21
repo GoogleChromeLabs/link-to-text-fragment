@@ -3,7 +3,7 @@
     return;
   }
 
-  const trimRemoveDuplicateSpaces = text => {
+  const trimAndRemoveDuplicateSpaces = text => {
     return text.trim().replace(/\s+/gm, ' ');
   };
 
@@ -29,7 +29,7 @@
       sel.modify('extend', direction[1], 'character');
       sel.modify('extend', direction[0], 'word');
     }
-    return trimRemoveDuplicateSpaces(sel.toString());
+    return trimAndRemoveDuplicateSpaces(sel.toString());
   };
 
   browser.runtime.onMessage.addListener((request, _, sendResponse) => {
@@ -41,16 +41,16 @@
       const closest = anchorNode.parentNode.closest('[id]:not([id=""])');
       sendResponse({
         selectedText,
-        pageText: trimRemoveDuplicateSpaces(document.body.innerText),
+        pageText: trimAndRemoveDuplicateSpaces(document.body.innerText),
         textBeforeSelection: anchorNode.data.substr(0, anchorOffset).trim(),
         textAfterSelection: focusNode.data.substr(focusOffset).trim(),
         textNodeBeforeSelection: anchorNode.parentNode.previousElementSibling
-          ? trimRemoveDuplicateSpaces(
+          ? trimAndRemoveDuplicateSpaces(
               anchorNode.parentNode.previousElementSibling.innerText
             )
           : '',
         textNodeAfterSelection: focusNode.parentNode.nextElementSibling
-          ? trimRemoveDuplicateSpaces(
+          ? trimAndRemoveDuplicateSpaces(
               focusNode.parentNode.nextElementSibling.innerText
             )
           : '',
