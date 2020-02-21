@@ -1,0 +1,14 @@
+{
+  "extension_name": {
+    "message": "Enlace al fragmento de texto"
+  },
+  "extension_description": {
+    "message": "Extensión del navegador, que permite enlazar a cualquier fragmento de texto."
+  },
+  "copy_link": {
+    "message": "Copiar enlace al texto seleccionado"
+  },
+  "link_failure": {
+    "message": "El enlace no se pudo crear, por favor selecciona otras palabras."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "extension_name": {
+    "message": "Enllaç al fragment de text"
+  },
+  "extension_description": {
+    "message": "Extensió del navegador que permet enllaçar a qualsevol fragment de text."
+  },
+  "copy_link": {
+    "message": "Copiar enllaç al text seleccionat"
+  },
+  "link_failure": {
+    "message": "L'enllaç no s'ha pogut crear, si us plau selecciona unes altres paraules."
+  }
+}
