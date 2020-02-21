@@ -7,31 +7,54 @@
     return text.trim().replace(/\s+/gm, ' ');
   };
 
+  // Credits: https://stackoverflow.com/a/7381574/6255000
+  const snapSelectionToWord = sel => {
+    if (!sel.isCollapsed) {
+      // Detect if selection is backwards
+      const range = document.createRange();
+      range.setStart(sel.anchorNode, sel.anchorOffset);
+      range.setEnd(sel.focusNode, sel.focusOffset);
+      const direction = range.collapsed
+        ? ['backward', 'forward']
+        : ['forward', 'backward'];
+      range.detach();
+
+      // modify() works on the focus of the selection
+      const endNode = sel.focusNode;
+      const endOffset = sel.focusOffset;
+      sel.collapse(sel.anchorNode, sel.anchorOffset);
+      sel.modify('move', direction[0], 'character');
+      sel.modify('move', direction[1], 'word');
+      sel.extend(endNode, endOffset);
+      sel.modify('extend', direction[1], 'character');
+      sel.modify('extend', direction[0], 'word');
+    }
+    return trimRemoveDuplicateSpaces(sel.toString());
+  };
+
   browser.runtime.onMessage.addListener((request, _, sendResponse) => {
     const message = request.message;
     if (message === 'get-text') {
-      const {
-        anchorNode,
-        anchorOffset,
-        focusNode,
-        focusOffset
-      } = window.getSelection();
-      const closest = anchorNode.parentElement.closest('[id]:not([id=""])');
+      const selection = window.getSelection();
+      const selectedText = snapSelectionToWord(selection);
+      const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+      const closest = anchorNode.parentNode.closest('[id]:not([id=""])');
       sendResponse({
-        pageText: trimRemoveDuplicateSpaces(document.body.textContent),
+        selectedText,
+        pageText: trimRemoveDuplicateSpaces(document.body.innerText),
         textBeforeSelection: anchorNode.data.substr(0, anchorOffset).trim(),
         textAfterSelection: focusNode.data.substr(focusOffset).trim(),
-        textNodeBeforeSelection: focusNode.parentNode.previousElementSibling
+        textNodeBeforeSelection: anchorNode.parentNode.previousElementSibling
           ? trimRemoveDuplicateSpaces(
-              focusNode.parentNode.previousElementSibling.textContent
+              anchorNode.parentNode.previousElementSibling.innerText
             )
           : '',
-        textNodeAfterSelection: anchorNode.parentNode.nextElementSibling
+        textNodeAfterSelection: focusNode.parentNode.nextElementSibling
           ? trimRemoveDuplicateSpaces(
-              anchorNode.parentNode.nextElementSibling.textContent
+              focusNode.parentNode.nextElementSibling.innerText
             )
           : '',
-         closestElementFragment: closest ? closest.id : null,
+        closestElementFragment: closest ? closest.id : null
       });
     } else if (message === 'success') {
       console.log(request.data);

@@ -1,4 +1,16 @@
 (browser => {
+  // https://wicg.github.io/ScrollToTextFragment/#:~:text=It%20is%20recommended%20that%20text%20snippets%20shorter%20than%20300%20characters%20always%20be%20encoded%20using%20an%20exact%20match.
+  // Experimenting with 100 instead.
+  EXACT_MATCH_MAX_LENGTH = 100;
+  INNER_CONTEXT_MAX_LENGTH = 2;
+  DEBUG = true;
+
+  const log = (...args) => {
+    if (DEBUG) {
+      console.log.apply(this, args);
+    }
+  };
+
   if (!('fragmentDirective' in window.location)) {
     return;
   }
@@ -14,21 +26,28 @@
     if (!selectedText) {
       return;
     }
-    const textFragmentURL = await createURL(tab.url, selectedText);
+    const textFragmentURL = await createURL(tab.url);
     await copyToClipboard(textFragmentURL);
   });
 
-  const escapeRegExp = (s) => {
+  const escapeRegExp = s => {
     return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
   };
 
+  const unescapeRegExp = s => {
+    return s.replace(/\\([-\/\\^$*+?.()|[\]{}])/g, '$1');
+  };
+
   const isUniqueMatch = (hayStack, textStart, textEnd = '') => {
-    const needle = new RegExp(`${textStart}${textEnd}`, 'gimus');
-    console.log('————————————————');
-    console.log('RegExp:', needle.source);
-    console.log('Matches:', [...hayStack.matchAll(needle)]);
-    console.log('————————————————');
-    return (matches = [...hayStack.matchAll(needle)]);
+    try {
+      const needle = new RegExp(`${textStart}${textEnd}`, 'gims');
+      const matches = [...hayStack.matchAll(needle)];
+      log('———\n', 'RegEx:', needle.source, '\n', 'Matches:', matches, '\n———');
+      return matches;
+    } catch (err) {
+      console.error(err.name, err.message);
+      return [];
+    }
   };
 
   const findUniqueMatch = (
@@ -38,24 +57,27 @@
     matches,
     wordsBefore,
     wordsAfter,
+    growContextBefore,
     before = '',
-    after = '',
-    coin = true,
+    after = ''
   ) => {
-    console.log('before "' + before + '"');
-    console.log('textStart "' + textStart + '"');
-    console.log('textEnd "' + textEnd + '"');
-    console.log('after "' + after + '"');
+    log(
+      ' before: "' + before + '"\n',
+      'textStart: "' + textStart + '"\n',
+      'textEnd: "' + textEnd + '"\n',
+      'after: "' + after + '"\n',
+      'growContextBefore: ' + growContextBefore
+    );
     // We need to add context before or after the needle.
     // Throw a coin to decide each time whether before or after.
-    if (wordsBefore.length > 0 && coin) {
+    if (growContextBefore && wordsBefore.length > 0) {
       const newBefore = escapeRegExp(wordsBefore.pop());
       before = `${newBefore}${before ? ` ${before}` : ''}`;
-      console.log('new before "' + before + '"');
+      log('new before "' + before + '"');
     } else if (wordsAfter.length > 0) {
       const newAfter = escapeRegExp(wordsAfter.shift());
       after = `${after ? `${after} ` : ''}${newAfter}`;
-      console.log('new after "' + after + '"');
+      log('new after "' + after + '"');
     }
     matches = isUniqueMatch(
       pageText,
@@ -64,8 +86,8 @@
     );
     if (matches.length === 1) {
       return {
-        before,
-        after
+        before: unescapeRegExp(before),
+        after: unescapeRegExp(after)
       };
     } else if (matches.length === 0) {
       // This should never happen, but, hey… ¯\_(ツ)_/¯
@@ -81,9 +103,9 @@
       matches,
       wordsBefore,
       wordsAfter,
+      growContextBefore,
       before,
-      after,
-      Math.random() > 0.5
+      after
     );
   };
 
@@ -91,49 +113,90 @@
     return encodeURIComponent(text).replace(/-/g, '%2D');
   };
 
-  const createURL = async (tabURL, selectedText) => {
+  const createURL = async tabURL => {
     const {
+      selectedText,
       pageText,
       textBeforeSelection,
       textAfterSelection,
       textNodeBeforeSelection,
       textNodeAfterSelection,
-      closestElementFragment,
+      closestElementFragment
     } = await getPageTextContent();
     tabURL = new URL(tabURL);
     let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${
-        closestElementFragment ? `#${closestElementFragment}` : '#'}`;
-    const selectedWords = selectedText.split(/\s+/gmu);
-    let textStart = selectedText;
+      closestElementFragment ? `#${closestElementFragment}` : '#'
+    }`;
+    const selectedWords = selectedText.split(/\s+/gm);
+    let textStart = '';
     let textEnd = '';
-    if (selectedWords.length > 1) {
-      textStart = selectedWords[0];
+    if (
+      selectedWords.length === 1 ||
+      selectedText.length <= EXACT_MATCH_MAX_LENGTH
+    ) {
+      // Just use the entire text
+      textStart = selectedText;
+    } else {
+      // Use the first and the last word of the selection.
+      textStart = selectedWords.shift();
       textEnd = selectedWords.pop();
+      if (
+        selectedText.length > EXACT_MATCH_MAX_LENGTH &&
+        INNER_CONTEXT_MAX_LENGTH > 0
+      ) {
+        textStart +=
+          ' ' + selectedWords.splice(0, INNER_CONTEXT_MAX_LENGTH).join(' ');
+        textEnd =
+          selectedWords.splice(-1 * INNER_CONTEXT_MAX_LENGTH).join(' ') +
+          ' ' +
+          textEnd;
+      }
     }
-    let matches = isUniqueMatch(pageText, textStart, `${textEnd ? `.*?${textEnd}` : ''}`);
+    let matches = isUniqueMatch(
+      pageText,
+      escapeRegExp(textStart),
+      `${textEnd ? `.*?${escapeRegExp(textEnd)}` : ''}`
+    );
     // We have a unique match, return it.
     if (matches.length === 1) {
       textStart = encodeURIComponentAndMinus(textStart);
       textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
       return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
+      // We need to add context.
     } else {
-      let wordsBefore = (textNodeBeforeSelection
-        ? textNodeBeforeSelection.split(/\s+/gmu)
-        : []
-      ).concat(textBeforeSelection ? textBeforeSelection.split(/\s+/gmu) : []);
-      let wordsAfter = (textAfterSelection
-        ? textAfterSelection.split(/\s+/gmu)
-        : []
-      ).concat(
-        textNodeAfterSelection ? textNodeAfterSelection.split(/\s+/gmu) : []
+      // The text before/after in the same node as the selected text
+      // combined with the text in the previous/next node.
+      const wordsInTextNodeBeforeSelection = textNodeBeforeSelection
+        ? textNodeBeforeSelection.split(/\s+/gm)
+        : [];
+      const wordsBeforeSelection = textBeforeSelection
+        ? textBeforeSelection.split(/\s+/gm)
+        : [];
+      let wordsBefore = wordsInTextNodeBeforeSelection.concat(
+        wordsBeforeSelection
       );
+
+      const wordsInTextNodeAfterSelection = textNodeAfterSelection
+        ? textNodeAfterSelection.split(/\s+/gm)
+        : [];
+      const wordsAfterSelection = textAfterSelection
+        ? textAfterSelection.split(/\s+/gmu)
+        : [];
+      let wordsAfter = wordsAfterSelection.concat(
+        wordsInTextNodeAfterSelection
+      );
+
+      const growContextBefore =
+        wordsBeforeSelection.length > wordsAfterSelection.length;
+
       let { before, after } = findUniqueMatch(
         pageText,
         textStart,
         textEnd,
         matches,
         wordsBefore,
-        wordsAfter
+        wordsAfter,
+        growContextBefore
       );
       if (!before && !after) {
         return await sendMessageToPage('failure');
@@ -200,6 +263,7 @@
       document.execCommand('copy');
       textArea.remove();
     }
+    log(url)
     await sendMessageToPage('success', url);
   };
 })(window.chrome || window.browser);
