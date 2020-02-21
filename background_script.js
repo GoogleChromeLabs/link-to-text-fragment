@@ -89,7 +89,10 @@
         before: unescapeRegExp(before),
         after: unescapeRegExp(after)
       };
-    } else if (matches.length === 0) {
+    } else if (
+      matches.length === 0 ||
+      (wordsBefore.length === 0 && wordsAfter.length === 0)
+    ) {
       // This should never happen, but, hey… ¯\_(ツ)_/¯
       return {
         before: false,
