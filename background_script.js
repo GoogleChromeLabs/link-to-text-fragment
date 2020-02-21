@@ -184,7 +184,7 @@
         ? textNodeAfterSelection.split(/\s+/gm)
         : [];
       const wordsAfterSelection = textAfterSelection
-        ? textAfterSelection.split(/\s+/gmu)
+        ? textAfterSelection.split(/\s+/gm)
         : [];
       const wordsAfter = wordsAfterSelection.concat(
         wordsInTextNodeAfterSelection
