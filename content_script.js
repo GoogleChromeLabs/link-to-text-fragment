@@ -11,10 +11,6 @@
     }
   };
 
-  const trimAndRemoveDuplicateSpaces = (text) => {
-    return text.trim().replace(/\s+/gm, ' ');
-  };
-
   // Credits: https://stackoverflow.com/a/7381574/6255000
   const snapSelectionToWord = (sel) => {
     if (!sel.isCollapsed) {
@@ -37,11 +33,7 @@
       sel.modify('extend', direction[1], 'character');
       sel.modify('extend', direction[0], 'word');
     }
-    const selection = sel.toString();
-    return {
-      raw: selection.trim(),
-      processed: trimAndRemoveDuplicateSpaces(selection),
-    };
+    return sel.toString().trim();
   };
 
   const getText = (sendResponse) => {
@@ -49,7 +41,7 @@
     const selectedText = snapSelectionToWord(selection);
     const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
 
-    const pageText = trimAndRemoveDuplicateSpaces(document.body.innerText);
+    const pageText = document.body.innerText.trim();
     const textBeforeSelection = anchorNode.data.substr(0, anchorOffset).trim();
     const textAfterSelection = focusNode.data.substr(focusOffset).trim();
     const closestElementFragment = anchorNode.parentNode.closest(
@@ -57,17 +49,18 @@
     )
       ? anchorNode.parentNode.closest('[id]:not([id=""])').id
       : null;
-    const textNodeBeforeSelection = anchorNode.parentNode.previousElementSibling
-      ? trimAndRemoveDuplicateSpaces(
-          anchorNode.parentNode.previousElementSibling.innerText,
-        )
+    const textNodeBeforeSelection = anchorNode.parentNode.previousSibling
+      ? anchorNode.parentNode.previousSibling.textContent
+      : anchorNode.parentNode.previousElementSibling &&
+        anchorNode.parentNode.previousElementSibling.offsetParent
+      ? anchorNode.parentNode.previousElementSibling.innerText.trim()
       : '';
-    const textNodeAfterSelection = focusNode.parentNode.nextElementSibling
-      ? trimAndRemoveDuplicateSpaces(
-          focusNode.parentNode.nextElementSibling.innerText,
-        )
+    const textNodeAfterSelection = focusNode.parentNode.nextSibling
+      ? focusNode.parentNode.nextSibling.textContent
+      : focusNode.parentNode.nextElementSibling &&
+        focusNode.parentNode.nextElementSibling.offsetParent
+      ? focusNode.parentNode.nextElementSibling.innerText.trim()
       : '';
-
     const data = {
       selectedText,
       pageText,
@@ -78,7 +71,7 @@
       closestElementFragment,
     };
     log(data);
-    sendResponse(data);
+    return data;
   };
 
   const reportSuccess = (url) => {
@@ -91,23 +84,27 @@
         color: #000 !important;
         background-color: #ffff00 !important;
       }`);
-    setTimeout(() => style.remove(), 1000);
+    window.setTimeout(() => style.remove(), 2000);
+    return true;
   };
 
   const reportFailure = () => {
-    alert(chrome.i18n.getMessage('link_failure'));
+    window.queueMicrotask(() => {
+      alert(chrome.i18n.getMessage('link_failure'));
+    });
+    return true;
   };
 
   browser.runtime.onMessage.addListener((request, _, sendResponse) => {
     const message = request.message;
     if (message === 'get-text') {
-      return getText(sendResponse);
+      return sendResponse(getText());
     } else if (message === 'success') {
-      return reportSuccess(request.data);
+      return sendResponse(reportSuccess(request.data));
     } else if (message === 'failure') {
-      return reportFailure();
+      return sendResponse(reportFailure());
     } else if (message === 'debug') {
-      return (DEBUG = request.data);
+      return sendResponse((DEBUG = request.data) || true);
     }
   });
 })(window.chrome || window.browser);

@@ -27,9 +27,18 @@
     if (!selectedText) {
       return;
     }
-    await sendMessageToPage('debug', DEBUG);
+    try {
+      await sendMessageToPage('debug', DEBUG);
+    } catch {
+      // Ignore
+    }
     const textFragmentURL = await createURL(tab.url);
     if (!textFragmentURL) {
+      try {
+        await sendMessageToPage('failure');
+      } catch {
+        // Ignore
+      }
       return log('😔 Failed to create unique link.\n\n\n');
     }
     await copyToClipboard(textFragmentURL);
@@ -51,7 +60,13 @@
     try {
       const needle = new RegExp(`${start}${end}`, 'gims');
       const matches = [...hayStack.matchAll(needle)];
-      log('———\n', 'RegEx:', needle.source, '\n', 'Matches:', matches, '\n———');
+      log(
+        '———\n',
+        'RegEx: 👉' + needle.source + '👈\n',
+        'Matches:',
+        matches,
+        '\n———',
+      );
       if (matches.length === 1) {
         let matchedText = matches[0][0];
         // Find inner matches where the needle is (at least partly) contained
@@ -66,6 +81,8 @@
           return true;
         }
         return false;
+      } else if (matches.length === 0) {
+        return null;
       }
       return false;
     } catch (err) {
@@ -122,12 +139,12 @@
     }
     // We need to add outer context before or after the needle.
     if (growthDirection === 'prefix' && wordsBefore.length > 0) {
-      const newBefore = escapeRegExp(wordsBefore.pop());
-      prefix = `${newBefore}${prefix ? ` ${prefix}` : ''}`;
+      const newPrefix = escapeRegExp(wordsBefore.pop());
+      prefix = `${newPrefix}${prefix ? ` ${prefix}` : ''}`;
       log('new prefix "' + prefix + '"');
     } else if (wordsAfter.length > 0) {
-      const newAfter = escapeRegExp(wordsAfter.shift());
-      suffix = `${suffix ? `${suffix} ` : ''}${newAfter}`;
+      const newSuffix = escapeRegExp(wordsAfter.shift());
+      suffix = `${suffix ? `${suffix} ` : ''}${newSuffix}`;
       log('new suffix "' + suffix + '"');
     }
     unique = isUniqueMatch(
@@ -137,8 +154,8 @@
     );
     if (unique) {
       return {
-        prefix: unescapeRegExp(prefix),
-        suffix: unescapeRegExp(suffix),
+        prefix: unescapeRegExp(prefix.trim()),
+        suffix: unescapeRegExp(suffix.trim()),
       };
     } else if (unique === null) {
       // Couldn't create regular expression. This should rarely happen…
@@ -161,9 +178,9 @@
   };
 
   const chooseSeedTextStartAndTextEnd = (selection) => {
-    const selectedText = selection.processed;
-    const selectedWords = selection.processed.split(/\s+/gm);
-    const selectedParagraphs = selection.raw.split(/\n+/gm);
+    const selectedText = selection;
+    const selectedWords = selection.split(/\s/g);
+    const selectedParagraphs = selection.split(/\n+/g);
     let textStart = '';
     let textEnd = '';
     log('🔎 Beginning our search.', selection);
@@ -174,19 +191,25 @@
       // boundary.
       const selectedWordsBeforeBoundary = selectedParagraphs
         .shift()
-        .split(/\s+/g);
-      const selectedWordsAfterBoundary = selectedParagraphs.pop().split(/\s+/g);
+        .split(/\s/g);
+      const selectedWordsAfterBoundary = selectedParagraphs.pop().split(/\s/g);
       textStart = selectedWordsBeforeBoundary.shift();
       textEnd = selectedWordsAfterBoundary.pop();
       // Add inner context at the beginning and the end.
       if (CONTEXT_MAX_WORDS > 0) {
-        textStart +=
-          ' ' +
-          selectedWordsBeforeBoundary.splice(0, CONTEXT_MAX_WORDS).join(' ');
-        textEnd =
-          selectedWordsAfterBoundary.splice(-1 * CONTEXT_MAX_WORDS).join(' ') +
-          ' ' +
-          textEnd;
+        if (selectedWordsBeforeBoundary.length) {
+          textStart +=
+            ' ' +
+            selectedWordsBeforeBoundary.splice(0, CONTEXT_MAX_WORDS).join(' ');
+        }
+        if (selectedWordsAfterBoundary.length) {
+          textEnd =
+            selectedWordsAfterBoundary
+              .splice(-1 * CONTEXT_MAX_WORDS)
+              .join(' ') +
+            ' ' +
+            textEnd;
+        }
       }
     } else if (
       selectedWords.length === 1 ||
@@ -196,29 +219,38 @@
       // Just use the entire text.
       textStart = selectedText;
     } else {
-      log('Selection spans just one boundary but is too long.');
+      log('Selection spans just one boundary, but is too long.');
       // Use the first and the last word of the selection.
       textStart = selectedWords.shift();
       textEnd = selectedWords.pop();
       // Add inner context at the beginning and the end.
       if (CONTEXT_MAX_WORDS > 0) {
-        textStart += ' ' + selectedWords.splice(0, CONTEXT_MAX_WORDS).join(' ');
-        textEnd =
-          selectedWords.splice(-1 * CONTEXT_MAX_WORDS).join(' ') +
-          ' ' +
-          textEnd;
+        if (selectedWords.length) {
+          textStart +=
+            ' ' + selectedWords.splice(0, CONTEXT_MAX_WORDS).join(' ');
+        }
+        // Need to check again since `splice` changes the array.
+        if (selectedWords.length) {
+          textEnd =
+            selectedWords.splice(-1 * CONTEXT_MAX_WORDS).join(' ') +
+            ' ' +
+            textEnd;
+        }
       }
     }
-    return { textStart, textEnd };
+    return {
+      textStart: escapeRegExp(textStart.trim()),
+      textEnd: escapeRegExp(textEnd.trim()),
+    };
   };
 
   const createURL = async (tabURL) => {
     let pageResponse;
     try {
-      pageResponse = await getPageTextContent();
+      pageResponse = await sendMessageToPage('get-text');
     } catch (err) {
       console.error(err.name, err.message);
-      return;
+      return false;
     }
     const {
       selectedText,
@@ -238,65 +270,67 @@
     let { textStart, textEnd } = chooseSeedTextStartAndTextEnd(selectedText);
     let unique = isUniqueMatch(
       pageText,
-      escapeRegExp(textStart),
-      `${textEnd ? `.*?${escapeRegExp(textEnd)}` : ''}`,
+      textStart,
+      `${textEnd ? `.*?${textEnd}` : ''}`,
     );
     if (unique) {
       // We have a unique match, return it.
-      textStart = encodeURIComponentAndMinus(textStart);
-      textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
+      textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
+      textEnd = textEnd
+        ? `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}`
+        : '';
       return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
-    } else {
-      // We need to add context. Therefore, use the text before/after in the
-      // same node as the selected text, or if there's none, the text in
-      // the previous/next node.
-      const wordsInTextNodeBeforeSelection = textNodeBeforeSelection
-        ? textNodeBeforeSelection.split(/\s+/gm)
-        : [];
-      const wordsBeforeSelection = textBeforeSelection
-        ? textBeforeSelection.split(/\s+/gm)
-        : [];
-      const wordsBefore = wordsBeforeSelection.length
-        ? wordsBeforeSelection
-        : wordsInTextNodeBeforeSelection;
-
-      const wordsInTextNodeAfterSelection = textNodeAfterSelection
-        ? textNodeAfterSelection.split(/\s+/gm)
-        : [];
-      const wordsAfterSelection = textAfterSelection
-        ? textAfterSelection.split(/\s+/gm)
-        : [];
-      const wordsAfter = wordsAfterSelection.length
-        ? wordsAfterSelection
-        : wordsInTextNodeAfterSelection;
-
-      // Add context either before or after the selected text, depending on
-      // where there is more text.
-      const growthDirection =
-        wordsBefore.length > wordsAfter.length ? 'prefix' : 'suffix';
-
-      let { prefix, suffix } = findUniqueMatch(
-        pageText,
-        textStart,
-        textEnd,
-        unique,
-        wordsBefore,
-        wordsAfter,
-        growthDirection,
-      );
-      if (!prefix && !suffix) {
-        await sendMessageToPage('failure');
-        return false;
-      }
-      prefix = prefix ? `${encodeURIComponentAndMinus(prefix)}-,` : '';
-      suffix = suffix ? `,-${encodeURIComponentAndMinus(suffix)}` : '';
-      textStart = encodeURIComponentAndMinus(textStart);
-      textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
-      return (textFragmentURL += `:~:text=${prefix}${textStart}${textEnd}${suffix}`);
+    } else if (unique === null) {
+      return false;
     }
+    // We need to add context. Therefore, use the text before/after in the
+    // same node as the selected text, or if there's none, the text in
+    // the previous/next node.
+    const wordsInTextNodeBeforeSelection = textNodeBeforeSelection
+      ? textNodeBeforeSelection.split(/\s/g)
+      : [];
+    const wordsBeforeSelection = textBeforeSelection
+      ? textBeforeSelection.split(/\s/g)
+      : [];
+    const wordsBefore = wordsBeforeSelection.length
+      ? wordsBeforeSelection
+      : wordsInTextNodeBeforeSelection;
+
+    const wordsInTextNodeAfterSelection = textNodeAfterSelection
+      ? textNodeAfterSelection.split(/\s/g)
+      : [];
+    const wordsAfterSelection = textAfterSelection
+      ? textAfterSelection.split(/\s/g)
+      : [];
+    const wordsAfter = wordsAfterSelection.length
+      ? wordsAfterSelection
+      : wordsInTextNodeAfterSelection;
+
+    // Add context either before or after the selected text, depending on
+    // where there is more text.
+    const growthDirection =
+      wordsBefore.length > wordsAfter.length ? 'prefix' : 'suffix';
+
+    let { prefix, suffix } = findUniqueMatch(
+      pageText,
+      textStart,
+      textEnd,
+      unique,
+      wordsBefore,
+      wordsAfter,
+      growthDirection,
+    );
+    if (!prefix && !suffix) {
+      return false;
+    }
+    prefix = prefix ? `${encodeURIComponentAndMinus(prefix)}-,` : '';
+    suffix = suffix ? `,-${encodeURIComponentAndMinus(suffix)}` : '';
+    textStart = encodeURIComponentAndMinus(textStart);
+    textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
+    return (textFragmentURL += `:~:text=${prefix}${textStart}${textEnd}${suffix}`);
   };
 
-  const getPageTextContent = async () => {
+  const sendMessageToPage = (message, data = null) => {
     return new Promise((resolve, reject) => {
       browser.tabs.query(
         {
@@ -307,12 +341,13 @@
           browser.tabs.sendMessage(
             tabs[0].id,
             {
-              message: 'get-text',
+              message,
+              data,
             },
             (response) => {
               if (!response) {
                 return reject(
-                  'An error occurred while connecting to the specified tab.',
+                  new Error('Failed to connect to the specified tab.'),
                 );
               }
               return resolve(response);
@@ -323,24 +358,10 @@
     });
   };
 
-  const sendMessageToPage = async (message, data = null) => {
-    browser.tabs.query(
-      {
-        active: true,
-        currentWindow: true,
-      },
-      (tabs) => {
-        browser.tabs.sendMessage(tabs[0].id, {
-          message,
-          data,
-        });
-      },
-    );
-  };
-
   const copyToClipboard = async (url) => {
     // Try to use the Async Clipboard API with fallback to the legacy approach.
     try {
+      await sendMessageToPage('success', url);
       const { state } = await navigator.permissions.query({
         name: 'clipboard-write',
       });
@@ -357,6 +378,5 @@
       textArea.remove();
     }
     log('🎉', url, '\n\n\n');
-    await sendMessageToPage('success', url);
   };
 })(window.chrome || window.browser);
