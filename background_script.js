@@ -29,6 +29,9 @@
     }
     await sendMessageToPage('debug', DEBUG);
     const textFragmentURL = await createURL(tab.url);
+    if (!textFragmentURL) {
+      return log('😔 Failed to create unique link.\n\n\n');
+    }
     await copyToClipboard(textFragmentURL);
   });
 
@@ -282,7 +285,8 @@
         growthDirection,
       );
       if (!prefix && !suffix) {
-        return await sendMessageToPage('failure');
+        await sendMessageToPage('failure');
+        return false;
       }
       prefix = prefix ? `${encodeURIComponentAndMinus(prefix)}-,` : '';
       suffix = suffix ? `,-${encodeURIComponentAndMinus(suffix)}` : '';
@@ -352,7 +356,7 @@
       document.execCommand('copy');
       textArea.remove();
     }
-    log('🎉', url);
+    log('🎉', url, '\n\n\n');
     await sendMessageToPage('success', url);
   };
 })(window.chrome || window.browser);
