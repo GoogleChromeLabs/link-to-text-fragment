@@ -44,17 +44,17 @@
     return encodeURIComponent(text).replace(/-/g, '%2D');
   };
 
-  const isUniqueMatch = (hayStack, textStart, textEnd = '') => {
+  const isUniqueMatch = (hayStack, start, end = '') => {
     try {
-      const needle = new RegExp(`${textStart}${textEnd}`, 'gims');
+      const needle = new RegExp(`${start}${end}`, 'gims');
       const matches = [...hayStack.matchAll(needle)];
       log('———\n', 'RegEx:', needle.source, '\n', 'Matches:', matches, '\n———');
       if (matches.length === 1) {
         let matchedText = matches[0][0];
         // Find inner matches where the needle is (at least partly) contained
         // again in the haystack.
-        const startNeedle = new RegExp(textStart, 'ims');
-        const endNeedle = new RegExp(textEnd.replace(/^\.\*\?/), 'ims');
+        const startNeedle = new RegExp(start, 'ims');
+        const endNeedle = new RegExp(end.replace(/^\.\*\?/), 'ims');
         matchedText = matchedText
           .replace(startNeedle, '')
           .replace(endNeedle, '');
@@ -79,13 +79,13 @@
     unique,
     wordsBefore,
     wordsAfter,
-    growContextBefore,
-    before = '',
-    after = '',
+    growthDirection,
+    prefix = '',
+    suffix = '',
   ) => {
     log(
-      'before: "' +
-        before +
+      'prefix: "' +
+        prefix +
         '"\n' +
         'textStart: "' +
         textStart +
@@ -93,19 +93,19 @@
         'textEnd: "' +
         textEnd +
         '"\n' +
-        'after: "' +
-        after +
+        'suffix: "' +
+        suffix +
         '"\n' +
-        'grow context: ' +
-        (growContextBefore ? 'before' : 'after'),
+        'growth direction: ' +
+        growthDirection,
     );
     if (
       wordsAfter.length === 0 &&
       wordsBefore.length > 0 &&
-      !growContextBefore
+      growthDirection === 'suffix'
     ) {
       // Switch the growth direction.
-      growContextBefore = true;
+      growthDirection = 'prefix';
     } else if (
       wordsBefore.length === 0 &&
       wordsAfter.length === 0 &&
@@ -113,35 +113,35 @@
     ) {
       // No more search options.
       return {
-        before: false,
-        after: false,
+        prefix: false,
+        suffix: false,
       };
     }
     // We need to add outer context before or after the needle.
-    if (growContextBefore && wordsBefore.length > 0) {
+    if (growthDirection === 'prefix' && wordsBefore.length > 0) {
       const newBefore = escapeRegExp(wordsBefore.pop());
-      before = `${newBefore}${before ? ` ${before}` : ''}`;
-      log('new before "' + before + '"');
+      prefix = `${newBefore}${prefix ? ` ${prefix}` : ''}`;
+      log('new prefix "' + prefix + '"');
     } else if (wordsAfter.length > 0) {
       const newAfter = escapeRegExp(wordsAfter.shift());
-      after = `${after ? `${after} ` : ''}${newAfter}`;
-      log('new after "' + after + '"');
+      suffix = `${suffix ? `${suffix} ` : ''}${newAfter}`;
+      log('new suffix "' + suffix + '"');
     }
     unique = isUniqueMatch(
       pageText,
-      `${before ? `${before}.?` : ''}${textStart}`,
-      `${textEnd ? `.*?${textEnd}` : ''}${after ? `.?${after}` : ''}`,
+      `${prefix ? `${prefix}.?` : ''}${textStart}`,
+      `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `.?${suffix}` : ''}`,
     );
     if (unique) {
       return {
-        before: unescapeRegExp(before),
-        after: unescapeRegExp(after),
+        prefix: unescapeRegExp(prefix),
+        suffix: unescapeRegExp(suffix),
       };
     } else if (unique === null) {
       // Couldn't create regular expression. This should rarely happen…
       return {
-        before: false,
-        after: false,
+        prefix: false,
+        suffix: false,
       };
     }
     return findUniqueMatch(
@@ -151,9 +151,9 @@
       unique,
       wordsBefore,
       wordsAfter,
-      growContextBefore,
-      before,
-      after,
+      growthDirection,
+      prefix,
+      suffix,
     );
   };
 
@@ -163,6 +163,7 @@
     const selectedParagraphs = selection.raw.split(/\n+/gm);
     let textStart = '';
     let textEnd = '';
+    log('🔎 Beginning our search.', selection);
     // Reminder: `shift()`, `pop()`, and `splice()` all change the array.
     if (selectedParagraphs.length > 1) {
       log('Selection spans multiple boundaries.');
@@ -268,25 +269,26 @@
 
       // Add context either before or after the selected text, depending on
       // where there is more text.
-      const growContextBefore = wordsBefore.length > wordsAfter.length;
+      const growthDirection =
+        wordsBefore.length > wordsAfter.length ? 'prefix' : 'suffix';
 
-      let { before, after } = findUniqueMatch(
+      let { prefix, suffix } = findUniqueMatch(
         pageText,
         textStart,
         textEnd,
         unique,
         wordsBefore,
         wordsAfter,
-        growContextBefore,
+        growthDirection,
       );
-      if (!before && !after) {
+      if (!prefix && !suffix) {
         return await sendMessageToPage('failure');
       }
-      before = before ? `${encodeURIComponentAndMinus(before)}-,` : '';
-      after = after ? `,-${encodeURIComponentAndMinus(after)}` : '';
+      prefix = prefix ? `${encodeURIComponentAndMinus(prefix)}-,` : '';
+      suffix = suffix ? `,-${encodeURIComponentAndMinus(suffix)}` : '';
       textStart = encodeURIComponentAndMinus(textStart);
       textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
-      return (textFragmentURL += `:~:text=${before}${textStart}${textEnd}${after}`);
+      return (textFragmentURL += `:~:text=${prefix}${textStart}${textEnd}${suffix}`);
     }
   };
 
@@ -306,7 +308,7 @@
             (response) => {
               if (!response) {
                 return reject(
-                  'An error occured while connecting to the specified tab.',
+                  'An error occurred while connecting to the specified tab.',
                 );
               }
               return resolve(response);
@@ -350,7 +352,7 @@
       document.execCommand('copy');
       textArea.remove();
     }
-    log(url);
+    log('🎉', url);
     await sendMessageToPage('success', url);
   };
 })(window.chrome || window.browser);
