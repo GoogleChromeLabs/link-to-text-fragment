@@ -7,7 +7,7 @@
 
   const log = (...args) => {
     if (DEBUG) {
-      console.log.apply(this, args);
+      console.log(...args);
     }
   };
 
@@ -18,9 +18,9 @@
       const range = document.createRange();
       range.setStart(sel.anchorNode, sel.anchorOffset);
       range.setEnd(sel.focusNode, sel.focusOffset);
-      const direction = range.collapsed
-        ? ['backward', 'forward']
-        : ['forward', 'backward'];
+      const direction = range.collapsed ?
+        ['backward', 'forward'] :
+        ['forward', 'backward'];
       range.detach();
 
       // modify() works on the focus of the selection
@@ -36,31 +36,104 @@
     return sel.toString().trim();
   };
 
+  const getPreviousNode = (anchorNode) => {
+    let seenAnchorNode = false;
+    const treeWalker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            if (node.isSameNode(anchorNode)) {
+              seenAnchorNode = true;
+              return NodeFilter.FILTER_SKIP;
+            }
+            if (seenAnchorNode) {
+              return NodeFilter.FILTER_SKIP;
+            }
+            return node.parentNode.offsetParent &&
+            node.nodeValue.replace(/\s/g, '') ?
+            NodeFilter.FILTER_ACCEPT :
+            NodeFilter.FILTER_SKIP;
+          },
+        },
+    );
+    let previousNode = null;
+    let currentNode = null;
+    while ((currentNode = treeWalker.nextNode())) {
+      previousNode = currentNode;
+    }
+    return previousNode;
+  };
+
+  const getNextNode = (focusNode) => {
+    let seenFocusNode = false;
+    const treeWalker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            if (node.isSameNode(focusNode)) {
+              seenFocusNode = true;
+              return NodeFilter.FILTER_SKIP;
+            }
+            if (!seenFocusNode) {
+              return NodeFilter.FILTER_SKIP;
+            }
+            return node.parentNode.offsetParent &&
+            node.nodeValue.replace(/\s/g, '') ?
+            NodeFilter.FILTER_ACCEPT :
+            NodeFilter.FILTER_SKIP;
+          },
+        },
+    );
+    return treeWalker.nextNode();
+  };
+
+  const getClosestID = (root) => {
+    let seenRoot = false;
+    const treeWalker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (node) => {
+            if (node.isSameNode(root)) {
+              seenRoot = true;
+            }
+            return node.offsetParent && node.hasAttribute('id') && !seenRoot ?
+            NodeFilter.FILTER_ACCEPT :
+            NodeFilter.FILTER_SKIP;
+          },
+        },
+    );
+    let nodeWithID = null;
+    let currentNode = null;
+    while ((currentNode = treeWalker.nextNode())) {
+      nodeWithID = currentNode;
+    }
+    return nodeWithID ? nodeWithID.id : null;
+  };
+
   const getText = (sendResponse) => {
     const selection = window.getSelection();
     const selectedText = snapSelectionToWord(selection);
-    const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+    const {anchorNode, anchorOffset, focusNode, focusOffset} = selection;
 
     const pageText = document.body.innerText.trim();
     const textBeforeSelection = anchorNode.data.substr(0, anchorOffset).trim();
     const textAfterSelection = focusNode.data.substr(focusOffset).trim();
-    const closestElementFragment = anchorNode.parentNode.closest(
-      '[id]:not([id=""])',
-    )
-      ? anchorNode.parentNode.closest('[id]:not([id=""])').id
-      : null;
-    const textNodeBeforeSelection = anchorNode.parentNode.previousSibling
-      ? anchorNode.parentNode.previousSibling.textContent
-      : anchorNode.parentNode.previousElementSibling &&
-        anchorNode.parentNode.previousElementSibling.offsetParent
-      ? anchorNode.parentNode.previousElementSibling.innerText.trim()
-      : '';
-    const textNodeAfterSelection = focusNode.parentNode.nextSibling
-      ? focusNode.parentNode.nextSibling.textContent
-      : focusNode.parentNode.nextElementSibling &&
-        focusNode.parentNode.nextElementSibling.offsetParent
-      ? focusNode.parentNode.nextElementSibling.innerText.trim()
-      : '';
+    const closestElementFragment = getClosestID(anchorNode.parentNode);
+    const previousNode = getPreviousNode(anchorNode);
+    const nextNode = getNextNode(focusNode);
+    const textNodeBeforeSelection = previousNode ?
+      previousNode.nodeType === 3 ?
+        previousNode.nodeValue :
+        previousNode.innerText :
+      '';
+    const textNodeAfterSelection = nextNode ?
+      nextNode.nodeType === 3 ?
+        nextNode.nodeValue :
+        nextNode.innerText :
+      '';
     const data = {
       selectedText,
       pageText,
@@ -90,7 +163,7 @@
 
   const reportFailure = () => {
     window.queueMicrotask(() => {
-      alert(chrome.i18n.getMessage('link_failure'));
+      alert(browser.i18n.getMessage('link_failure'));
     });
     return true;
   };
