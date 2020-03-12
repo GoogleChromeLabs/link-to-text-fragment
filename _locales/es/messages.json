@@ -2,6 +2,9 @@
   "extension_name": {
     "message": "Enlace al fragmento de texto"
   },
+  "extension_short_name": {
+    "message": "Fragmento de texto"
+  },
   "extension_description": {
     "message": "Extensión del navegador, que permite enlazar a cualquier fragmento de texto."
   },

@@ -2,6 +2,9 @@
   "extension_name": {
     "message": "Link zu Textfragment"
   },
+  "extension_short_name": {
+    "message": "Textfragment"
+  },
   "extension_description": {
     "message": "Browser Extension, die das Verlinken auf beliebige Textfragmente ermöglicht."
   },
