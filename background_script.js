@@ -183,6 +183,8 @@
     const selectedParagraphs = selection.split(/\n+/g);
     let textStart = '';
     let textEnd = '';
+    let textStartGrowthWords = [];
+    let textEndGrowthWords = [];
     log('🔎 Beginning our search.', selection);
     // Reminder: `shift()`, `pop()`, and `splice()` all change the array.
     if (selectedParagraphs.length > 1) {
@@ -202,6 +204,7 @@
             ' ' +
             selectedWordsBeforeBoundary.splice(0, CONTEXT_MAX_WORDS).join(' ');
         }
+        textStartGrowthWords = selectedWordsBeforeBoundary;
         if (selectedWordsAfterBoundary.length) {
           textEnd =
             selectedWordsAfterBoundary
@@ -210,6 +213,7 @@
             ' ' +
             textEnd;
         }
+        textEndGrowthWords = selectedWordsAfterBoundary;
       }
     } else if (
       selectedWords.length === 1 ||
@@ -236,11 +240,14 @@
             ' ' +
             textEnd;
         }
+        textStartGrowthWords = selectedWords;
       }
     }
     return {
       textStart: escapeRegExp(textStart.trim()),
       textEnd: escapeRegExp(textEnd.trim()),
+      textStartGrowthWords,
+      textEndGrowthWords,
     };
   };
 
@@ -267,8 +274,13 @@
       closestElementFragment ? `#${closestElementFragment}` : '#'
     }`;
 
-    let {textStart, textEnd} = chooseSeedTextStartAndTextEnd(selectedText);
-    const unique = isUniqueMatch(
+    let {
+      textStart,
+      textEnd,
+      textStartGrowthWords,
+      textEndGrowthWords,
+    } = chooseSeedTextStartAndTextEnd(selectedText);
+    let unique = isUniqueMatch(
         pageText,
         textStart,
         `${textEnd ? `.*?${textEnd}` : ''}`,
@@ -283,7 +295,56 @@
     } else if (unique === null) {
       return false;
     }
-    // We need to add context. Therefore, use the text before/after in the
+
+    // We need to add inner context to textStart.
+    if (textStartGrowthWords.length) {
+      log('Growing inner context at text start');
+      while (textStartGrowthWords.length) {
+        const newTextStart = escapeRegExp(textStartGrowthWords.shift());
+        textStart = `${textStart} ${newTextStart}`;
+        log('new text start "' + textStart + '"');
+        unique = isUniqueMatch(
+            pageText,
+            textStart,
+            `${textEnd ? `.*?${textEnd}` : ''}`,
+        );
+        if (unique) {
+          // We have a unique match, return it.
+          textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
+          textEnd = textEnd ?
+            `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
+            '';
+          return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
+        } else if (unique === null) {
+          return false;
+        }
+      }
+    }
+
+    // We need to add inner context to textEnd.
+    if (textEndGrowthWords.length) {
+      log('Growing inner context at text end');
+      while (textEndGrowthWords.length) {
+        const newTextEnd = escapeRegExp(textEndGrowthWords.pop());
+        textEnd = `${newTextEnd} ${textEnd}`;
+        log('new text end "' + textEnd + '"');
+        unique = isUniqueMatch(
+            pageText,
+            textStart,
+            `.*?${textEnd}`,
+        );
+        if (unique) {
+          // We have a unique match, return it.
+          textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
+          textEnd = encodeURIComponentAndMinus(unescapeRegExp(textEnd));
+          return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
+        } else if (unique === null) {
+          return false;
+        }
+      }
+    }
+
+    // We need to add outer context. Therefore, use the text before/after in the
     // same node as the selected text, or if there's none, the text in
     // the previous/next node.
     const wordsInTextNodeBeforeSelection = textNodeBeforeSelection ?
