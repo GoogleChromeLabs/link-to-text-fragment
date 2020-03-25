@@ -90,6 +90,9 @@
   };
 
   const getClosestID = (root) => {
+    if (root.id) {
+      return root.id;
+    }
     let seenRoot = false;
     const treeWalker = document.createTreeWalker(
         document.body,
