@@ -149,8 +149,8 @@
     }
     unique = isUniqueMatch(
         pageText,
-        `${prefix ? `${prefix}.*?` : ''}${textStart}`,
-        `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `.*?${suffix}` : ''}`,
+        `${prefix ? `${prefix}(.?|\\s*)` : ''}${textStart}`,
+        `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `(.?|\\s*)${suffix}` : ''}`,
     );
     if (unique) {
       return {
