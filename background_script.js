@@ -22,11 +22,23 @@
     contexts: ['all'],
   });
 
+  const injectContentScript = async () => {
+    return new Promise((resolve) => {
+      browser.tabs.executeScript({
+        file: 'content_script.js',
+      },
+      () => {
+        return resolve();
+      });
+    });
+  };
+
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
     const selectedText = info.selectionText;
     if (!selectedText) {
       return;
     }
+    await injectContentScript();
     try {
       await sendMessageToPage('debug', DEBUG);
     } catch {
@@ -150,7 +162,8 @@
     unique = isUniqueMatch(
         pageText,
         `${prefix ? `${prefix}(.?|\\s*)` : ''}${textStart}`,
-        `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `(.?|\\s*)${suffix}` : ''}`,
+        `${textEnd ? `.*?${textEnd}` : ''}${
+            suffix ? `(.?|\\s*)${suffix}` : ''}`,
     );
     if (unique) {
       return {

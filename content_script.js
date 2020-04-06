@@ -1,8 +1,4 @@
 ((browser) => {
-  if (!('fragmentDirective' in window.location)) {
-    return;
-  }
-
   let DEBUG = false;
 
   const log = (...args) => {
