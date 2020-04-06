@@ -177,6 +177,8 @@
       return sendResponse(reportFailure());
     } else if (message === 'debug') {
       return sendResponse((DEBUG = request.data) || true);
+    } else if (message === 'ping') {
+      return sendResponse('pong');
     }
   });
 })(window.chrome || window.browser);

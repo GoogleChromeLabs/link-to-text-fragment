@@ -23,14 +23,19 @@
   });
 
   const injectContentScript = async () => {
-    return new Promise((resolve) => {
-      browser.tabs.executeScript({
-        file: 'content_script.js',
-      },
-      () => {
-        return resolve();
+    // If there's a reply, the content script already was injected.
+    try {
+      return await sendMessageToPage('ping');
+    } catch (err) {
+      return new Promise((resolve) => {
+        browser.tabs.executeScript({
+          file: 'content_script.js',
+        },
+        () => {
+          return resolve();
+        });
       });
-    });
+    }
   };
 
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
