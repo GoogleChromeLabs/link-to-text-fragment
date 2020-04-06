@@ -19,7 +19,7 @@
   browser.contextMenus.create({
     title: browser.i18n.getMessage('copy_link'),
     id: 'copy-link',
-    contexts: ['all'],
+    contexts: ['selection'],
   });
 
   const injectContentScript = async () => {
