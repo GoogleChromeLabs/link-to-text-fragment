@@ -22,5 +22,6 @@
     "192": "assets/192x192.png",
     "512": "assets/512x512.png"
   },
-  "default_locale": "en"
+  "default_locale": "en",
+  "minimum_chrome_version": "80"
 }
