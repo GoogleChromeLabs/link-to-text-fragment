@@ -22,5 +22,8 @@ of text fragment URLs via the context menu:
 
 ![Text fragment selected on a webpage and contextmenu showing "Copy Link to Selected Text"](https://github.com/tomayac/link-to-text-fragment/blob/master/store-assets/screenshot-contextmenu-1280x800.png?raw=true)
 
-The extension's source code is licensed under the terms of the Apache 2.0 license. 
+The extension's source code is licensed under the terms of the Apache 2.0 license.
+
 This is not an official Google product.
+By installing this item, you agree to the Google Terms of Service and Privacy Policy at
+https://www.google.com/intl/en/policies/.
