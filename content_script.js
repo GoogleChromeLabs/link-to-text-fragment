@@ -1,3 +1,18 @@
+/**
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 ((browser) => {
   let DEBUG = false;
 
@@ -115,8 +130,11 @@
   const getText = (sendResponse) => {
     const selection = window.getSelection();
     const selectedText = snapSelectionToWord(selection);
-    const {anchorNode, anchorOffset, focusNode, focusOffset} = selection;
-
+    let {anchorNode, anchorOffset, focusNode, focusOffset} = selection;
+    // If the selection is backward across nodes, swap the nodes.
+    if (anchorNode.compareDocumentPosition(focusNode) === Node.DOCUMENT_POSITION_PRECEDING) {
+      [anchorNode, focusNode] = [focusNode, anchorNode];
+    }
     const pageText = document.body.innerText.trim();
     const textBeforeSelection = anchorNode.data.substr(0, anchorOffset).trim();
     const textAfterSelection = focusNode.data.substr(focusOffset).trim();
