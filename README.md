@@ -20,7 +20,7 @@ of text fragment URLs via the context menu:
 1) Right-click and choose "Copy Link to Selected Text" from the context menu.
 1) Paste your link wherever you want to share it.
 
-![Text fragment selected on a webpage and contextmenu showing "Copy Link to Selected Text"](https://github.com/tomayac/link-to-text-fragment/blob/master/store-assets/screenshot-contextmenu-1280x800.png?raw=true)
+![Text fragment selected on a webpage and contextmenu showing "Copy Link to Selected Text"](https://github.com/GoogleChromeLabs/link-to-text-fragment/blob/master/store-assets/screenshot-contextmenu-1280x800.png?raw=true)
 
 The extension's source code is licensed under the terms of the Apache 2.0 license.
 
