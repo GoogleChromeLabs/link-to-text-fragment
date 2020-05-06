@@ -12,6 +12,6 @@
     "message": "Copy Link to Selected Text"
   },
   "link_failure": {
-    "message": "Couldn't create link, please select different words."
+    "message": "Couldn't create a unique link, please select a longer sequence of words."
   }
 }

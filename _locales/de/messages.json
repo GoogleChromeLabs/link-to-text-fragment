@@ -12,6 +12,6 @@
     "message": "Link zu ausgewähltem Text kopieren"
   },
   "link_failure": {
-    "message": "Link konnte nicht erstellt werden, bitte andere Wörter auswählen."
+    "message": "Ein eindeutiger Link konnte nicht erstellt werden, bitte eine längere Wortsequenz auswählen."
   }
 }

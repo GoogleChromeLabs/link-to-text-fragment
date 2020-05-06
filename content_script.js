@@ -180,7 +180,8 @@
 
   const reportFailure = () => {
     window.queueMicrotask(() => {
-      alert(browser.i18n.getMessage('link_failure'));
+      alert(`${browser.i18n.getMessage('extension_name')}\n🚧 ${
+        browser.i18n.getMessage('link_failure')}`);
     });
     return true;
   };

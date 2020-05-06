@@ -12,6 +12,6 @@
     "message": "Copiar enllaç al text seleccionat"
   },
   "link_failure": {
-    "message": "L'enllaç no s'ha pogut crear, si us plau selecciona unes altres paraules."
+    "message": "No s'ha pogut crear un enllaç únic, si us plau selecciona una sequència més llarga de paraules."
   }
 }
