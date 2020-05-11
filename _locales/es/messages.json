@@ -6,7 +6,7 @@
     "message": "Fragmento de texto"
   },
   "extension_description": {
-    "message": "Extensión del navegador, que permite enlazar a cualquier fragmento de texto."
+    "message": "Extensión del navegador, que permite enlazar a cualquier texto en una pagina."
   },
   "copy_link": {
     "message": "Copiar enlace al texto seleccionado"
