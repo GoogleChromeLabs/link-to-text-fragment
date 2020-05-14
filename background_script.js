@@ -43,12 +43,14 @@
       return await sendMessageToPage('ping');
     } catch (err) {
       return new Promise((resolve) => {
-        browser.tabs.executeScript({
-          file: 'content_script.js',
-        },
-        () => {
-          return resolve();
-        });
+        browser.tabs.executeScript(
+            {
+              file: 'content_script.js',
+            },
+            () => {
+              return resolve();
+            },
+        );
       });
     }
   };
@@ -182,8 +184,8 @@
     unique = isUniqueMatch(
         pageText,
         `${prefix ? `${prefix}(.?|\\s*)` : ''}${textStart}`,
-        `${textEnd ? `.*?${textEnd}` : ''}${
-            suffix ? `(.?|\\s*)${suffix}` : ''}`,
+        // eslint-disable-next-line max-len
+        `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `(.?|\\s*)${suffix}` : ''}`,
     );
     if (unique) {
       return {
@@ -361,11 +363,7 @@
         const newTextEnd = escapeRegExp(textEndGrowthWords.pop());
         textEnd = `${newTextEnd} ${textEnd}`;
         log('new text end "' + textEnd + '"');
-        unique = isUniqueMatch(
-            pageText,
-            textStart,
-            `.*?${textEnd}`,
-        );
+        unique = isUniqueMatch(pageText, textStart, `.*?${textEnd}`);
         if (unique) {
           // We have a unique match, return it.
           textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));

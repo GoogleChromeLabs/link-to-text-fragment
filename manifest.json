@@ -4,16 +4,10 @@
   "version": "1.1.7",
   "description": "__MSG_extension_description__",
   "background": {
-    "scripts": [
-      "background_script.js"
-    ],
+    "scripts": ["background_script.js"],
     "persistent": false
   },
-  "permissions": [
-    "activeTab",
-    "contextMenus",
-    "clipboardWrite"
-  ],
+  "permissions": ["activeTab", "contextMenus", "clipboardWrite"],
   "manifest_version": 2,
   "icons": {
     "180": "assets/180x180.png",

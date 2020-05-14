@@ -132,7 +132,10 @@
     const selectedText = snapSelectionToWord(selection);
     let {anchorNode, anchorOffset, focusNode, focusOffset} = selection;
     // If the selection is backward across nodes, swap the nodes.
-    if (anchorNode.compareDocumentPosition(focusNode) === Node.DOCUMENT_POSITION_PRECEDING) {
+    if (
+      anchorNode.compareDocumentPosition(focusNode) ===
+      Node.DOCUMENT_POSITION_PRECEDING
+    ) {
       [anchorNode, focusNode] = [focusNode, anchorNode];
     }
     const pageText = document.body.innerText.trim();
@@ -180,8 +183,11 @@
 
   const reportFailure = () => {
     window.queueMicrotask(() => {
-      alert(`${browser.i18n.getMessage('extension_name')}\n🚧 ${
-        browser.i18n.getMessage('link_failure')}`);
+      alert(
+          `🛑 ${browser.i18n.getMessage(
+              'extension_name',
+          )}\n\n${browser.i18n.getMessage('link_failure')}`,
+      );
     });
     return true;
   };
