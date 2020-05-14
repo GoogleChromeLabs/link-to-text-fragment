@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 (async (browser) => {
-  if (!('fragmentDirective' in window.location)) {
+  if (!('fragmentDirective' in Location.prototype)) {
     return;
   }
 
