@@ -186,7 +186,7 @@
       alert(
           `🛑 ${browser.i18n.getMessage(
               'extension_name',
-          )}\n\n${browser.i18n.getMessage('link_failure')}`,
+          )}:\n${browser.i18n.getMessage('link_failure')}`,
       );
     });
     return true;
