@@ -1,6 +1,6 @@
 {
   "name": "link-to-text-fragment",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Browser extension that allows for linking to arbitrary text fragments.",
   "scripts": {
     "lint": "npx prettier --write . && npx eslint ./*.js --fix"

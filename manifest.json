@@ -1,7 +1,7 @@
 {
   "name": "__MSG_extension_name__",
   "short_name": "__MSG_extension_short_name__",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "__MSG_extension_description__",
   "background": {
     "scripts": ["background_script.js"],
@@ -10,10 +10,11 @@
   "permissions": ["activeTab", "contextMenus", "clipboardWrite"],
   "manifest_version": 2,
   "icons": {
-    "180": "assets/180x180.png",
     "16": "assets/16x16.png",
     "32": "assets/32x32.png",
     "192": "assets/192x192.png",
+    "128": "assets/128x128.png",
+    "180": "assets/180x180.png",
     "512": "assets/512x512.png"
   },
   "default_locale": "en",
