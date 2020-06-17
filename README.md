@@ -1,5 +1,9 @@
 # Link to Text Fragment
 
+- 📖 Article: https://web.dev/text-fragments/
+- 🧩 Extension: https://chrome.google.com/webstore/detail/link-to-text-fragment/pbcodcjpfjdpcineamnnmbkkmkdpajjg
+- 🎬 Demo video: https://www.youtube.com/watch?v=Y5DmGqnzvBI
+
 ## Installation
 
 You can install the
