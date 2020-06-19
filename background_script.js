@@ -305,7 +305,7 @@
     } = pageResponse;
 
     tabURL = new URL(tabURL);
-    let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${
+    let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${tabURL.search}${
       closestElementFragment ? `#${closestElementFragment}` : '#'
     }`;
 
