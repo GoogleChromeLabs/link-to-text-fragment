@@ -127,6 +127,10 @@
     return nodeWithID ? nodeWithID.id : null;
   };
 
+  const cleanText = (text) => {
+    return text.replace(/\u00A0/g, ' ');
+  };
+
   const getText = (sendResponse) => {
     const selection = window.getSelection();
     const selectedText = snapSelectionToWord(selection);
@@ -155,12 +159,12 @@
         nextNode.innerText :
       '';
     const data = {
-      selectedText,
-      pageText,
-      textBeforeSelection,
-      textAfterSelection,
-      textNodeBeforeSelection,
-      textNodeAfterSelection,
+      selectedText: cleanText(selectedText),
+      pageText: cleanText(pageText),
+      textBeforeSelection: cleanText(textBeforeSelection),
+      textAfterSelection: cleanText(textAfterSelection),
+      textNodeBeforeSelection: cleanText(textNodeBeforeSelection),
+      textNodeAfterSelection: cleanText(textNodeAfterSelection),
       closestElementFragment,
     };
     log(data);
