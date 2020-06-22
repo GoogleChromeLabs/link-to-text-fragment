@@ -128,6 +128,7 @@
   };
 
   const cleanText = (text) => {
+    // Replace &nbsp; with regular space.
     return text.replace(/\u00A0/g, ' ');
   };
 

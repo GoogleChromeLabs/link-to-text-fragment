@@ -174,12 +174,12 @@
     // We need to add outer context before or after the needle.
     if (growthDirection === 'prefix' && wordsBefore.length > 0) {
       const newPrefix = escapeRegExp(wordsBefore.pop());
-      prefix = `${newPrefix}${prefix ? ` ${prefix}` : ''}`;
-      log('new prefix "' + prefix + '"');
+      prefix = `${newPrefix}${prefix ? ` ${prefix}` : ''}`.trim();
+      log('New prefix "' + prefix + '"');
     } else if (wordsAfter.length > 0) {
       const newSuffix = escapeRegExp(wordsAfter.shift());
-      suffix = `${suffix ? `${suffix} ` : ''}${newSuffix}`;
-      log('new suffix "' + suffix + '"');
+      suffix = `${suffix ? `${suffix} ` : ''}${newSuffix}`.trim();
+      log('New suffix "' + suffix + '"');
     }
     unique = isUniqueMatch(
         pageText,
@@ -337,7 +337,7 @@
       while (textStartGrowthWords.length) {
         const newTextStart = escapeRegExp(textStartGrowthWords.shift());
         textStart = `${textStart} ${newTextStart}`;
-        log('new text start "' + textStart + '"');
+        log('New text start "' + textStart + '"');
         unique = isUniqueMatch(
             pageText,
             textStart,
@@ -362,7 +362,7 @@
       while (textEndGrowthWords.length) {
         const newTextEnd = escapeRegExp(textEndGrowthWords.pop());
         textEnd = `${newTextEnd} ${textEnd}`;
-        log('new text end "' + textEnd + '"');
+        log('New text end "' + textEnd + '"');
         unique = isUniqueMatch(pageText, textStart, `.*?${textEnd}`);
         if (unique) {
           // We have a unique match, return it.
@@ -415,10 +415,16 @@
     if (!prefix && !suffix) {
       return false;
     }
-    prefix = prefix ? `${encodeURIComponentAndMinus(prefix)}-,` : '';
-    suffix = suffix ? `,-${encodeURIComponentAndMinus(suffix)}` : '';
-    textStart = encodeURIComponentAndMinus(textStart);
-    textEnd = textEnd ? `,${encodeURIComponentAndMinus(textEnd)}` : '';
+    prefix = prefix ?
+      `${encodeURIComponentAndMinus(unescapeRegExp(prefix))}-,` :
+      '';
+    suffix = suffix ?
+      `,-${encodeURIComponentAndMinus(unescapeRegExp(suffix))}` :
+      '';
+    textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
+    textEnd = textEnd ?
+      `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
+      '';
     textFragmentURL += `:~:text=${prefix}${textStart}${textEnd}${suffix}`;
     return textFragmentURL;
   };
