@@ -6,9 +6,10 @@
 
 ## Installation
 
-You can install the
-[Link to Text Fragment extension](https://chrome.google.com/webstore/detail/link-to-text-fragment/pbcodcjpfjdpcineamnnmbkkmkdpajjg)
-from the Chrome Web Store.
+You can install the extension in your browser of choice:
+
+- Google Chrome: [Link to Text Fragment extension](https://chrome.google.com/webstore/detail/link-to-text-fragment/pbcodcjpfjdpcineamnnmbkkmkdpajjg)
+- Microsoft Edge: [Link to Text Fragment extension](https://microsoftedge.microsoft.com/addons/detail/link-to-text-fragment/pmdldpbcbobaamgkpkghjigngamlolag)
 
 ## Usage
 
