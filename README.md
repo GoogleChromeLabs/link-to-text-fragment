@@ -38,6 +38,14 @@ emphasize and/or bring it to the user's attention.
 Try it out by clicking on this link:
 https://wicg.github.io/scroll-to-text-fragment/#ref-for-fragment-directive:~:text=%23%3A~%3Atext%3D%5Bprefix%2D%2C%5DtextStart%5B%2CtextEnd%5D%5B%2C%2Dsuffix%5D.
 
+## Acknowledgements
+
+Text Fragments was implemented and specified by
+[Nick Burris](https://github.com/nickburris)
+and [David Bokan](https://github.com/bokand),
+with contributions from [Grant Wang](https://github.com/grantjwang).
+The extension icon is courtesy of [Rombout Versluijs](https://twitter.com/romboutv).
+
 ## License
 
 The extension's source code is licensed under the terms of the Apache 2.0 license.
