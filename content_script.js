@@ -182,6 +182,11 @@
         color: #000 !important;
         background-color: #ffff00 !important;
       }`);
+    // Need to force re-selection for the CSS to have an effect in Safari.
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+    selection.removeAllRanges();
+    selection.addRange(range);
     window.setTimeout(() => style.remove(), 2000);
     return true;
   };
@@ -211,4 +216,5 @@
       return sendResponse('pong');
     }
   });
-})(window.chrome || window.browser);
+// eslint-disable-next-line no-undef
+})(chrome || browser);

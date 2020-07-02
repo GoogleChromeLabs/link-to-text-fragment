@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 (async (browser) => {
-  if (!('fragmentDirective' in Location.prototype)) {
-    return;
-  }
-
   const DEBUG = true;
 
   // https://wicg.github.io/ScrollToTextFragment/#:~:text=It%20is%20recommended,a%20range%2Dbased%20match.
@@ -31,21 +27,15 @@
     }
   };
 
-  browser.contextMenus.create({
-    title: browser.i18n.getMessage('copy_link'),
-    id: 'copy-link',
-    contexts: ['selection'],
-  });
-
-  const injectContentScript = async () => {
+  const injectContentScript = async (contentScriptName) => {
     // If there's a reply, the content script already was injected.
     try {
       return await sendMessageToPage('ping');
     } catch (err) {
-      return new Promise((resolve) => {
+      new Promise((resolve) => {
         browser.tabs.executeScript(
             {
-              file: 'content_script.js',
+              file: contentScriptName,
             },
             () => {
               return resolve();
@@ -55,12 +45,26 @@
     }
   };
 
+  if (!('fragmentDirective' in Location.prototype)) {
+    browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'complete' && tab.status === 'complete') {
+        await injectContentScript('text-fragments.js');
+      }
+    });
+  }
+
+  browser.contextMenus.create({
+    title: browser.i18n.getMessage('copy_link'),
+    id: 'copy-link',
+    contexts: ['selection'],
+  });
+
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
     const selectedText = info.selectionText;
     if (!selectedText) {
       return;
     }
-    await injectContentScript();
+    await injectContentScript('content_script.js');
     try {
       await sendMessageToPage('debug', DEBUG);
     } catch {
@@ -478,4 +482,5 @@
     }
     log('🎉', url, '\n\n\n');
   };
-})(window.chrome || window.browser);
+// eslint-disable-next-line no-undef
+})(chrome || browser);
