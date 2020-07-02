@@ -45,13 +45,32 @@
     }
   };
 
-  if (!('fragmentDirective' in Location.prototype)) {
-    browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-      if (changeInfo.status === 'complete' && tab.status === 'complete') {
-        await injectContentScript('text-fragments.js');
-      }
+  const askForAllOriginsPermission = async () => {
+    return new Promise((resolve, reject) => {
+      browser.permissions.request({
+        origins: ['http://*/*', 'https://*/*'],
+      }, (granted) => {
+        if (granted) {
+          return resolve();
+        }
+        return reject(new Error('Host permission not granted.'));
+      });
     });
-  }
+  };
+
+  const polyfillTextFragments = async () => {
+    try {
+      await askForAllOriginsPermission();
+      browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+        if (changeInfo.status === 'complete' && tab.status === 'complete') {
+          await injectContentScript('text-fragments.js');
+        }
+      });
+    } catch {
+      // Ignore for now. Like this, users can still create links, for example,
+      // for sharing, but they won't work locally.
+    }
+  };
 
   browser.contextMenus.create({
     title: browser.i18n.getMessage('copy_link'),
@@ -64,7 +83,13 @@
     if (!selectedText) {
       return;
     }
+
+    if (!('fragmentDirective' in Location.prototype)) {
+      await polyfillTextFragments();
+    }
+
     await injectContentScript('content_script.js');
+
     try {
       await sendMessageToPage('debug', DEBUG);
     } catch {

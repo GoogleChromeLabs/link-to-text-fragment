@@ -187,7 +187,7 @@
     const range = selection.getRangeAt(0);
     selection.removeAllRanges();
     window.setTimeout(() => selection.addRange(range), 0);
-    window.setTimeout(() => style.remove(), 3000);
+    window.setTimeout(() => style.remove(), 2000);
     return true;
   };
 

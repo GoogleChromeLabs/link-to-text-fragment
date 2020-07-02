@@ -7,7 +7,8 @@
     "scripts": ["background_script.js"],
     "persistent": false
   },
-  "permissions": ["activeTab", "contextMenus", "clipboardWrite", "https://*/*"],
+  "permissions": ["activeTab", "contextMenus", "clipboardWrite"],
+  "optional_permissions": ["http://*/*", "https://*/*"],
   "manifest_version": 2,
   "icons": {
     "16": "assets/16x16.png",
