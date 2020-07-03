@@ -216,5 +216,5 @@
       return sendResponse('pong');
     }
   });
-// eslint-disable-next-line no-undef
+  // eslint-disable-next-line no-undef
 })(chrome || browser);

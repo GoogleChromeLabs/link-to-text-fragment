@@ -47,14 +47,17 @@
 
   const askForAllOriginsPermission = async () => {
     return new Promise((resolve, reject) => {
-      browser.permissions.request({
-        origins: ['http://*/*', 'https://*/*'],
-      }, (granted) => {
-        if (granted) {
-          return resolve();
-        }
-        return reject(new Error('Host permission not granted.'));
-      });
+      browser.permissions.request(
+          {
+            origins: ['http://*/*', 'https://*/*'],
+          },
+          (granted) => {
+            if (granted) {
+              return resolve();
+            }
+            return reject(new Error('Host permission not granted.'));
+          },
+      );
     });
   };
 
@@ -78,24 +81,43 @@
     contexts: ['selection'],
   });
 
-  browser.contextMenus.onClicked.addListener(async (info, tab) => {
-    const selectedText = info.selectionText;
-    if (!selectedText) {
-      return;
+  browser.commands.onCommand.addListener(async (command) => {
+    if (command === 'copy_link') {
+      if (!('fragmentDirective' in Location.prototype)) {
+        await polyfillTextFragments();
+      }
+      await injectContentScript('content_script.js');
+      browser.tabs.query(
+          {
+            active: true,
+            currentWindow: true,
+          },
+          (tabs) => {
+            startProcessing(tabs[0]);
+          },
+      );
     }
+  });
 
+  browser.contextMenus.onClicked.addListener(async (info, tab) => {
     if (!('fragmentDirective' in Location.prototype)) {
       await polyfillTextFragments();
     }
-
     await injectContentScript('content_script.js');
+    startProcessing(tab);
+  });
 
+  const startProcessing = async (tab) => {
     try {
       await sendMessageToPage('debug', DEBUG);
     } catch {
       // Ignore
     }
     const textFragmentURL = await createURL(tab.url);
+    // This happens if no text was selected when the keyboard shortcut was used.
+    if (textFragmentURL === '') {
+      return;
+    }
     if (!textFragmentURL) {
       try {
         await sendMessageToPage('failure');
@@ -105,7 +127,7 @@
       return log('😔 Failed to create unique link.\n\n\n');
     }
     await copyToClipboard(textFragmentURL);
-  });
+  };
 
   const escapeRegExp = (s) => {
     return s.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
@@ -333,6 +355,10 @@
       closestElementFragment,
     } = pageResponse;
 
+    if (!selectedText) {
+      return '';
+    }
+
     tabURL = new URL(tabURL);
     let textFragmentURL = `${tabURL.origin}${tabURL.pathname}${tabURL.search}${
       closestElementFragment ? `#${closestElementFragment}` : '#'
@@ -507,5 +533,5 @@
     }
     log('🎉', url, '\n\n\n');
   };
-// eslint-disable-next-line no-undef
+  // eslint-disable-next-line no-undef
 })(chrome || browser);
