@@ -25,7 +25,7 @@
     "eslint": "^7.5.0",
     "eslint-config-google": "^0.14.0",
     "shx": "^0.3.2",
-    "text-fragments-polyfill": "0.0.6"
+    "text-fragments-polyfill": "0.0.7"
   },
   "eslintConfig": {
     "env": {
