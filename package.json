@@ -4,7 +4,7 @@
   "description": "Browser extension that allows for linking to arbitrary text fragments.",
   "scripts": {
     "lint": "npx prettier --write . && npx eslint ./*.js --fix",
-    "prepare": "shx cp ./node_modules/text-fragments-polyfill/text-fragments.js ."
+    "prepare": "shx cp ./node_modules/text-fragments-polyfill/dist/text-fragments.js ."
   },
   "repository": {
     "type": "git",
@@ -22,10 +22,10 @@
   },
   "homepage": "https://github.com/GoogleChromeLabs/link-to-text-fragment#readme",
   "devDependencies": {
-    "eslint": "^7.3.1",
+    "eslint": "^7.5.0",
     "eslint-config-google": "^0.14.0",
     "shx": "^0.3.2",
-    "text-fragments-polyfill": "0.0.2"
+    "text-fragments-polyfill": "0.0.6"
   },
   "eslintConfig": {
     "env": {

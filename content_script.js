@@ -142,10 +142,13 @@
       Node.DOCUMENT_POSITION_PRECEDING
     ) {
       [anchorNode, focusNode] = [focusNode, anchorNode];
+      [anchorOffset, focusOffset] = [focusOffset, anchorOffset];
     }
     const pageText = document.body.innerText.trim();
-    const textBeforeSelection = anchorNode.data.substr(0, anchorOffset).trim();
-    const textAfterSelection = focusNode.data.substr(focusOffset).trim();
+    const textBeforeSelection = anchorNode.textContent
+        .substr(0, anchorOffset)
+        .trim();
+    const textAfterSelection = focusNode.textContent.substr(focusOffset).trim();
     const closestElementFragment = getClosestID(anchorNode.parentNode);
     const previousNode = getPreviousNode(anchorNode);
     const nextNode = getNextNode(focusNode);
