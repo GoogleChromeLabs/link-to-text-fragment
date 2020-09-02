@@ -17,7 +17,8 @@
   const DEBUG = true;
 
   const SUPPORTS_TEXT_FRAGMENTS =
-    'fragmentDirective' in Location.prototype || 'FragmentDirective' in window;
+    'fragmentDirective' in Location.prototype ||
+    'fragmentDirective' in document;
 
   // https://wicg.github.io/ScrollToTextFragment/#:~:text=It%20is%20recommended,a%20range%2Dbased%20match.
   // Experimenting with 100 instead.
