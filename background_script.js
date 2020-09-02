@@ -16,6 +16,9 @@
 (async (browser) => {
   const DEBUG = true;
 
+  const SUPPORTS_TEXT_FRAGMENTS =
+    'fragmentDirective' in Location.prototype || 'FragmentDirective' in window;
+
   // https://wicg.github.io/ScrollToTextFragment/#:~:text=It%20is%20recommended,a%20range%2Dbased%20match.
   // Experimenting with 100 instead.
   const EXACT_MATCH_MAX_CHARS = 100;
@@ -83,7 +86,7 @@
 
   browser.commands.onCommand.addListener(async (command) => {
     if (command === 'copy_link') {
-      if (!('fragmentDirective' in Location.prototype)) {
+      if (!SUPPORTS_TEXT_FRAGMENTS) {
         await polyfillTextFragments();
       }
       await injectContentScript('content_script.js');
@@ -100,7 +103,7 @@
   });
 
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
-    if (!('fragmentDirective' in Location.prototype)) {
+    if (!SUPPORTS_TEXT_FRAGMENTS) {
       await polyfillTextFragments();
     }
     await injectContentScript('content_script.js');
