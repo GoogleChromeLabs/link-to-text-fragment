@@ -22,10 +22,6 @@
   "minimum_chrome_version": "80",
   "commands": {
     "copy_link": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+L",
-        "mac": "Command+Shift+L"
-      },
       "description": "__MSG_copy_link__"
     }
   }
