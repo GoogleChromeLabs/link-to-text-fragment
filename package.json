@@ -1,11 +1,12 @@
 {
   "name": "link-to-text-fragment",
-  "version": "1.1.15",
+  "version": "1.2.0",
   "description": "Browser extension that allows for linking to arbitrary text fragments.",
   "scripts": {
     "fix": "npx prettier --write .",
     "lint": "npx eslint ./*.js --fix",
-    "prepare": "npm run fix && npm run lint && shx cp ./node_modules/text-fragments-polyfill/dist/text-fragments.js ."
+    "prepare": "npm run fix && npm run lint && shx cp ./node_modules/text-fragments-polyfill/dist/text-fragments.js .",
+    "safari": "xcrun safari-web-extension-converter . --project-location ./safari/ --swift --force --bundle-identifier com.google.googlechromelabs.link-to-text-fragment"
   },
   "repository": {
     "type": "git",
@@ -23,10 +24,10 @@
   },
   "homepage": "https://github.com/GoogleChromeLabs/link-to-text-fragment#readme",
   "devDependencies": {
-    "eslint": "^7.9.0",
+    "eslint": "^7.12.1",
     "eslint-config-google": "^0.14.0",
-    "shx": "^0.3.2",
-    "text-fragments-polyfill": "0.0.7"
+    "shx": "^0.3.3",
+    "text-fragments-polyfill": "1.0.0"
   },
   "eslintConfig": {
     "env": {
