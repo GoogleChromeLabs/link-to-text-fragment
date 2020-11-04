@@ -6,7 +6,7 @@
     "fix": "npx prettier --write .",
     "lint": "npx eslint ./*.js --fix",
     "prepare": "npm run fix && npm run lint && shx cp ./node_modules/text-fragments-polyfill/dist/text-fragments.js .",
-    "safari": "xcrun safari-web-extension-converter . --project-location ./safari/ --swift --force --bundle-identifier com.google.googlechromelabs.link-to-text-fragment"
+    "safari": "xcrun safari-web-extension-converter . --project-location ../safari-extensions/link-to-text-fragment --copy-resources --swift --force --bundle-identifier com.google.googlechromelabs.link-to-text-fragment"
   },
   "repository": {
     "type": "git",

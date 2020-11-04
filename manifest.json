@@ -16,7 +16,8 @@
     "192": "assets/192x192.png",
     "128": "assets/128x128.png",
     "180": "assets/180x180.png",
-    "512": "assets/512x512.png"
+    "512": "assets/512x512.png",
+    "1024": "assets/1024x1024.png"
   },
   "default_locale": "en",
   "minimum_chrome_version": "80",
