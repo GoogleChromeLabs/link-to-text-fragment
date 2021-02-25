@@ -24,10 +24,10 @@
   },
   "homepage": "https://github.com/GoogleChromeLabs/link-to-text-fragment#readme",
   "devDependencies": {
-    "eslint": "^7.12.1",
+    "eslint": "^7.20.0",
     "eslint-config-google": "^0.14.0",
     "shx": "^0.3.3",
-    "text-fragments-polyfill": "1.0.0"
+    "text-fragments-polyfill": "2.1.0"
   },
   "eslintConfig": {
     "env": {

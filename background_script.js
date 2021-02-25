@@ -117,12 +117,12 @@
     } catch {
       // Ignore
     }
-    const textFragmentURL = await createURL(tab.url);
+    const result = await createURL(tab.url);
     // This happens if no text was selected when the keyboard shortcut was used.
-    if (textFragmentURL === '') {
+    if (result === '') {
       return;
     }
-    if (!textFragmentURL) {
+    if (!result) {
       try {
         await sendMessageToPage('failure');
       } catch {
@@ -130,7 +130,8 @@
       }
       return log('😔 Failed to create unique link.\n\n\n');
     }
-    await copyToClipboard(textFragmentURL);
+    await sendMessageToPage('copy-url', result);
+    await sendMessageToPage('success', result.url);
   };
 
   const escapeRegExp = (s) => {
@@ -385,7 +386,10 @@
       textEnd = textEnd ?
         `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
         '';
-      return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
+      return {
+        url: (textFragmentURL += `:~:text=${textStart}${textEnd}`),
+        selectedText,
+      };
     } else if (unique === null) {
       return false;
     }
@@ -408,7 +412,10 @@
           textEnd = textEnd ?
             `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
             '';
-          return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
+          return {
+            url: (textFragmentURL += `:~:text=${textStart}${textEnd}`),
+            selectedText,
+          };
         } else if (unique === null) {
           return false;
         }
@@ -427,7 +434,10 @@
           // We have a unique match, return it.
           textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
           textEnd = encodeURIComponentAndMinus(unescapeRegExp(textEnd));
-          return (textFragmentURL += `:~:text=${textStart}${textEnd}`);
+          return {
+            url: (textFragmentURL += `:~:text=${textStart}${textEnd}`),
+            selectedText,
+          };
         } else if (unique === null) {
           return false;
         }
@@ -485,7 +495,10 @@
       `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
       '';
     textFragmentURL += `:~:text=${prefix}${textStart}${textEnd}${suffix}`;
-    return textFragmentURL;
+    return {
+      url: textFragmentURL,
+      selectedText,
+    };
   };
 
   const sendMessageToPage = (message, data = null) => {
@@ -514,28 +527,6 @@
           },
       );
     });
-  };
-
-  const copyToClipboard = async (url) => {
-    // Try to use the Async Clipboard API with fallback to the legacy approach.
-    try {
-      await sendMessageToPage('success', url);
-      const {state} = await navigator.permissions.query({
-        name: 'clipboard-write',
-      });
-      if (state !== 'granted') {
-        throw new Error('Clipboard permission not granted');
-      }
-      await navigator.clipboard.writeText(url);
-    } catch {
-      const textArea = document.createElement('textarea');
-      document.body.append(textArea);
-      textArea.textContent = url;
-      textArea.select();
-      document.execCommand('copy');
-      textArea.remove();
-    }
-    log('🎉', url, '\n\n\n');
   };
   // eslint-disable-next-line no-undef
 })(chrome || browser);

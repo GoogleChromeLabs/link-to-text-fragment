@@ -205,12 +205,57 @@
     return true;
   };
 
+  const copyToClipboard = async (result) => {
+    const {url, selectedText} = result;
+    // Try to use the Async Clipboard API with fallback to the legacy approach.
+    try {
+      const {state} = await navigator.permissions.query({
+        name: 'clipboard-write',
+      });
+      if (state !== 'granted') {
+        throw new Error('Clipboard permission not granted');
+      }
+      const clipboardData = [
+        new ClipboardItem({
+          'text/plain': new Blob([url], {type: 'text/plain'}),
+          'text/html': new Blob([`<a href="${url}">${selectedText}</a>`], {
+            type: 'text/html',
+          }),
+          /* // ToDo: Activate once supported.
+          'text/rtf': new Blob(
+            [
+
+              `{\field{\*\fldinst HYPERLINK "${url}"}{\fldrslt ${
+                  selectedText}}}`,
+            ],
+            { type: 'text/rtf' }
+          ),
+          */
+        }),
+      ];
+      /* global ClipboardItem */
+      await navigator.clipboard.write(clipboardData);
+    } catch (err) {
+      console.warn(err.name, err.message);
+      const textArea = document.createElement('textarea');
+      document.body.append(textArea);
+      textArea.textContent = url;
+      textArea.select();
+      document.execCommand('copy');
+      textArea.remove();
+    }
+    log('🎉', url, '\n\n\n');
+    return true;
+  };
+
   browser.runtime.onMessage.addListener((request, _, sendResponse) => {
     const message = request.message;
     if (message === 'get-text') {
       return sendResponse(getText());
     } else if (message === 'success') {
       return sendResponse(reportSuccess(request.data));
+    } else if (message === 'copy-url') {
+      return sendResponse(copyToClipboard(request.data));
     } else if (message === 'failure') {
       return sendResponse(reportFailure());
     } else if (message === 'debug') {
