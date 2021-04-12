@@ -38,12 +38,12 @@
     } catch (err) {
       new Promise((resolve) => {
         browser.tabs.executeScript(
-          {
-            file: contentScriptName,
-          },
-          () => {
-            return resolve();
-          }
+            {
+              file: contentScriptName,
+            },
+            () => {
+              return resolve();
+            },
         );
       });
     }
@@ -52,15 +52,15 @@
   const askForAllOriginsPermission = async () => {
     return new Promise((resolve, reject) => {
       browser.permissions.request(
-        {
-          origins: ['http://*/*', 'https://*/*'],
-        },
-        (granted) => {
-          if (granted) {
-            return resolve();
-          }
-          return reject(new Error('Host permission not granted.'));
-        }
+          {
+            origins: ['http://*/*', 'https://*/*'],
+          },
+          (granted) => {
+            if (granted) {
+              return resolve();
+            }
+            return reject(new Error('Host permission not granted.'));
+          },
       );
     });
   };
@@ -92,13 +92,13 @@
       }
       await injectContentScript('content_script.js');
       browser.tabs.query(
-        {
-          active: true,
-          currentWindow: true,
-        },
-        (tabs) => {
-          startProcessing(tabs[0]);
-        }
+          {
+            active: true,
+            currentWindow: true,
+          },
+          (tabs) => {
+            startProcessing(tabs[0]);
+          },
       );
     }
   });
@@ -151,11 +151,11 @@
       const needle = new RegExp(`${start}${end}`, 'gims');
       const matches = [...hayStack.matchAll(needle)];
       log(
-        '———\n',
-        'RegEx: 👉' + needle.source + '👈\n',
-        'Matches:',
-        matches,
-        '\n———'
+          '———\n',
+          'RegEx: 👉' + needle.source + '👈\n',
+          'Matches:',
+          matches,
+          '\n———',
       );
       if (matches.length === 1) {
         let matchedText = matches[0][0];
@@ -164,8 +164,8 @@
         const startNeedle = new RegExp(start, 'ims');
         const endNeedle = new RegExp(end.replace(/^\.\*\?/), 'ims');
         matchedText = matchedText
-          .replace(startNeedle, '')
-          .replace(endNeedle, '');
+            .replace(startNeedle, '')
+            .replace(endNeedle, '');
         const innerMatches = [...matchedText.matchAll(needle)];
         if (innerMatches.length === 0) {
           return true;
@@ -183,18 +183,18 @@
   };
 
   const findUniqueMatch = (
-    pageText,
-    textStart,
-    textEnd,
-    unique,
-    wordsBefore,
-    wordsAfter,
-    growthDirection,
-    prefix = '',
-    suffix = ''
+      pageText,
+      textStart,
+      textEnd,
+      unique,
+      wordsBefore,
+      wordsAfter,
+      growthDirection,
+      prefix = '',
+      suffix = '',
   ) => {
     log(
-      'prefix: "' +
+        'prefix: "' +
         prefix +
         '"\n' +
         'textStart: "' +
@@ -207,7 +207,7 @@
         suffix +
         '"\n' +
         'growth direction: ' +
-        growthDirection
+        growthDirection,
     );
     if (
       wordsAfter.length === 0 &&
@@ -238,10 +238,10 @@
       log('New suffix "' + suffix + '"');
     }
     unique = isUniqueMatch(
-      pageText,
-      `${prefix ? `${prefix}(.?|\\s*)` : ''}${textStart}`,
-      // eslint-disable-next-line max-len
-      `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `(.?|\\s*)${suffix}` : ''}`
+        pageText,
+        `${prefix ? `${prefix}(.?|\\s*)` : ''}${textStart}`,
+        // eslint-disable-next-line max-len
+        `${textEnd ? `.*?${textEnd}` : ''}${suffix ? `(.?|\\s*)${suffix}` : ''}`,
     );
     if (unique) {
       return {
@@ -256,15 +256,15 @@
       };
     }
     return findUniqueMatch(
-      pageText,
-      textStart,
-      textEnd,
-      unique,
-      wordsBefore,
-      wordsAfter,
-      growthDirection,
-      prefix,
-      suffix
+        pageText,
+        textStart,
+        textEnd,
+        unique,
+        wordsBefore,
+        wordsAfter,
+        growthDirection,
+        prefix,
+        suffix,
     );
   };
 
@@ -283,8 +283,8 @@
       // Use the first word of the first boundary and the last word of the last
       // boundary.
       const selectedWordsBeforeBoundary = selectedParagraphs
-        .shift()
-        .split(/\s/g);
+          .shift()
+          .split(/\s/g);
       const selectedWordsAfterBoundary = selectedParagraphs.pop().split(/\s/g);
       textStart = selectedWordsBeforeBoundary.shift();
       textEnd = selectedWordsAfterBoundary.pop();
@@ -299,8 +299,8 @@
         if (selectedWordsAfterBoundary.length) {
           textEnd =
             selectedWordsAfterBoundary
-              .splice(-1 * CONTEXT_MAX_WORDS)
-              .join(' ') +
+                .splice(-1 * CONTEXT_MAX_WORDS)
+                .join(' ') +
             ' ' +
             textEnd;
         }
@@ -376,16 +376,16 @@
       textEndGrowthWords,
     } = chooseSeedTextStartAndTextEnd(selectedText);
     let unique = isUniqueMatch(
-      pageText,
-      textStart,
-      `${textEnd ? `.*?${textEnd}` : ''}`
+        pageText,
+        textStart,
+        `${textEnd ? `.*?${textEnd}` : ''}`,
     );
     if (unique) {
       // We have a unique match, return it.
       textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
-      textEnd = textEnd
-        ? `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}`
-        : '';
+      textEnd = textEnd ?
+        `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
+        '';
       return {
         url: (textFragmentURL += `:~:text=${textStart}${textEnd}`),
         selectedText,
@@ -402,16 +402,16 @@
         textStart = `${textStart} ${newTextStart}`;
         log('New text start "' + textStart + '"');
         unique = isUniqueMatch(
-          pageText,
-          textStart,
-          `${textEnd ? `.*?${textEnd}` : ''}`
+            pageText,
+            textStart,
+            `${textEnd ? `.*?${textEnd}` : ''}`,
         );
         if (unique) {
           // We have a unique match, return it.
           textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
-          textEnd = textEnd
-            ? `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}`
-            : '';
+          textEnd = textEnd ?
+            `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
+            '';
           return {
             url: (textFragmentURL += `:~:text=${textStart}${textEnd}`),
             selectedText,
@@ -447,53 +447,53 @@
     // We need to add outer context. Therefore, use the text before/after in the
     // same node as the selected text, or if there's none, the text in
     // the previous/next node.
-    const wordsInTextNodeBeforeSelection = textNodeBeforeSelection
-      ? textNodeBeforeSelection.split(/\s/g)
-      : [];
-    const wordsBeforeSelection = textBeforeSelection
-      ? textBeforeSelection.split(/\s/g)
-      : [];
-    const wordsBefore = wordsBeforeSelection.length
-      ? wordsBeforeSelection
-      : wordsInTextNodeBeforeSelection;
+    const wordsInTextNodeBeforeSelection = textNodeBeforeSelection ?
+      textNodeBeforeSelection.split(/\s/g) :
+      [];
+    const wordsBeforeSelection = textBeforeSelection ?
+      textBeforeSelection.split(/\s/g) :
+      [];
+    const wordsBefore = wordsBeforeSelection.length ?
+      wordsBeforeSelection :
+      wordsInTextNodeBeforeSelection;
 
-    const wordsInTextNodeAfterSelection = textNodeAfterSelection
-      ? textNodeAfterSelection.split(/\s/g)
-      : [];
-    const wordsAfterSelection = textAfterSelection
-      ? textAfterSelection.split(/\s/g)
-      : [];
-    const wordsAfter = wordsAfterSelection.length
-      ? wordsAfterSelection
-      : wordsInTextNodeAfterSelection;
+    const wordsInTextNodeAfterSelection = textNodeAfterSelection ?
+      textNodeAfterSelection.split(/\s/g) :
+      [];
+    const wordsAfterSelection = textAfterSelection ?
+      textAfterSelection.split(/\s/g) :
+      [];
+    const wordsAfter = wordsAfterSelection.length ?
+      wordsAfterSelection :
+      wordsInTextNodeAfterSelection;
 
     // Add context either before or after the selected text, depending on
     // where there is more text.
     const growthDirection =
       wordsBefore.length > wordsAfter.length ? 'prefix' : 'suffix';
 
-    let { prefix, suffix } = findUniqueMatch(
-      pageText,
-      textStart,
-      textEnd,
-      unique,
-      wordsBefore,
-      wordsAfter,
-      growthDirection
+    let {prefix, suffix} = findUniqueMatch(
+        pageText,
+        textStart,
+        textEnd,
+        unique,
+        wordsBefore,
+        wordsAfter,
+        growthDirection,
     );
     if (!prefix && !suffix) {
       return false;
     }
-    prefix = prefix
-      ? `${encodeURIComponentAndMinus(unescapeRegExp(prefix))}-,`
-      : '';
-    suffix = suffix
-      ? `,-${encodeURIComponentAndMinus(unescapeRegExp(suffix))}`
-      : '';
+    prefix = prefix ?
+      `${encodeURIComponentAndMinus(unescapeRegExp(prefix))}-,` :
+      '';
+    suffix = suffix ?
+      `,-${encodeURIComponentAndMinus(unescapeRegExp(suffix))}` :
+      '';
     textStart = encodeURIComponentAndMinus(unescapeRegExp(textStart));
-    textEnd = textEnd
-      ? `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}`
-      : '';
+    textEnd = textEnd ?
+      `,${encodeURIComponentAndMinus(unescapeRegExp(textEnd))}` :
+      '';
     textFragmentURL += `:~:text=${prefix}${textStart}${textEnd}${suffix}`;
     return {
       url: textFragmentURL,
@@ -504,27 +504,27 @@
   const sendMessageToPage = (message, data = null) => {
     return new Promise((resolve, reject) => {
       browser.tabs.query(
-        {
-          active: true,
-          currentWindow: true,
-        },
-        (tabs) => {
-          browser.tabs.sendMessage(
-            tabs[0].id,
-            {
-              message,
-              data,
-            },
-            (response) => {
-              if (!response) {
-                return reject(
-                  new Error('Failed to connect to the specified tab.')
-                );
-              }
-              return resolve(response);
-            }
-          );
-        }
+          {
+            active: true,
+            currentWindow: true,
+          },
+          (tabs) => {
+            browser.tabs.sendMessage(
+                tabs[0].id,
+                {
+                  message,
+                  data,
+                },
+                (response) => {
+                  if (!response) {
+                    return reject(
+                        new Error('Failed to connect to the specified tab.'),
+                    );
+                  }
+                  return resolve(response);
+                },
+            );
+          },
       );
     });
   };
