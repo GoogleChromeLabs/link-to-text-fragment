@@ -13,5 +13,14 @@
   },
   "link_failure": {
     "message": "Ein eindeutiger Link konnte nicht erstellt werden, bitte eine längere Wortsequenz auswählen."
+  },
+  "link_copy_style": {
+    "message": "Kopier-Stil"
+  },
+  "rich": {
+    "message": "Kopiere Rich Text Links."
+  },
+  "raw": {
+    "message": "Kopiere rohe URLs."
   }
 }

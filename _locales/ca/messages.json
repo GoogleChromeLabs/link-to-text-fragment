@@ -13,5 +13,14 @@
   },
   "link_failure": {
     "message": "No s'ha pogut crear un enllaç únic, si us plau selecciona una sequència més llarga de paraules."
+  },
+  "link_copy_style": {
+    "message": "Estil de còpia d’enllaç"
+  },
+  "rich": {
+    "message": "Copiar un enllaç de text enriquit."
+  },
+  "raw": {
+    "message": "Copiar l'URL en brut."
   }
 }

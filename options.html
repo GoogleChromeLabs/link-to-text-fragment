@@ -9,24 +9,26 @@
         font-family: system-ui, sans-serif;
       }
       h1 {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
+      }
+      label {
+        font: inherit;
       }
     </style>
   </head>
   <body>
-    <h1>Link copy style:</h1>
+    <h1></h1>
     <form>
       <p>
         <label
           ><input type="radio" id="rich" name="style" />
-          <strong>Rich</strong> (Copies a link to the selected text.)</label
-        >
+          <span class="rich"></span
+        ></label>
       </p>
       <p>
         <label
-          ><input type="radio" id="raw" name="style" />
-          <strong>Raw</strong> (Copies just the URL.)</label
-        >
+          ><input type="radio" id="raw" name="style" /> <span class="raw"></span
+        ></label>
       </p>
     </form>
     <script src="options.js"></script>

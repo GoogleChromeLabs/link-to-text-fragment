@@ -13,5 +13,14 @@
   },
   "link_failure": {
     "message": "No se pudo crear un enlace único, por favor selecciona una secuencia de palabras más larga."
+  },
+  "link_copy_style": {
+    "message": "Estilo de copia de enlace"
+  },
+  "rich": {
+    "message": "Copiar un enlace de texto enriquecido."
+  },
+  "raw": {
+    "message": "Copie la URL cruda."
   }
 }

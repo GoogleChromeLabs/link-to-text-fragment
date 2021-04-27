@@ -1,4 +1,10 @@
 ((browser) => {
+  document.querySelector('h1').textContent = browser.i18n.getMessage(
+      'link_copy_style',
+  );
+  document.querySelector('.rich').textContent = browser.i18n.getMessage('rich');
+  document.querySelector('.raw').textContent = browser.i18n.getMessage('raw');
+
   const rich = document.querySelector('#rich');
   const raw = document.querySelector('#raw');
 

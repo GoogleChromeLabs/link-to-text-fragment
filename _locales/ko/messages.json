@@ -13,5 +13,14 @@
   },
   "link_failure": {
     "message": "고유한 링크를 생성하지 못했습니다. 긴 영역의 단어들을 선택해주세요."
+  },
+  "link_copy_style": {
+    "message": "링크 복사 스타일"
+  },
+  "rich": {
+    "message": "서식있는 텍스트 링크를 복사합니다."
+  },
+  "raw": {
+    "message": "원시 URL을 복사하십시오."
   }
 }
