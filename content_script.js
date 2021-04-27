@@ -22,161 +22,26 @@
     }
   };
 
-  // Credits: https://stackoverflow.com/a/7381574/6255000
-  const snapSelectionToWord = (sel) => {
-    if (!sel.isCollapsed) {
-      // Detect if selection is backwards
-      const range = document.createRange();
-      range.setStart(sel.anchorNode, sel.anchorOffset);
-      range.setEnd(sel.focusNode, sel.focusOffset);
-      const direction = range.collapsed ?
-        ['backward', 'forward'] :
-        ['forward', 'backward'];
-      range.detach();
-
-      // modify() works on the focus of the selection
-      const endNode = sel.focusNode;
-      const endOffset = sel.focusOffset;
-      sel.collapse(sel.anchorNode, sel.anchorOffset);
-      sel.modify('move', direction[0], 'character');
-      sel.modify('move', direction[1], 'word');
-      sel.extend(endNode, endOffset);
-      sel.modify('extend', direction[1], 'character');
-      sel.modify('extend', direction[0], 'word');
-    }
-    return sel.toString().trim();
-  };
-
-  const getPreviousNode = (anchorNode) => {
-    let seenAnchorNode = false;
-    const treeWalker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode: (node) => {
-            if (node.isSameNode(anchorNode)) {
-              seenAnchorNode = true;
-              return NodeFilter.FILTER_SKIP;
-            }
-            if (seenAnchorNode) {
-              return NodeFilter.FILTER_SKIP;
-            }
-            return node.parentNode.offsetParent &&
-            node.nodeValue.replace(/\s/g, '') ?
-            NodeFilter.FILTER_ACCEPT :
-            NodeFilter.FILTER_SKIP;
-          },
-        },
-    );
-    let previousNode = null;
-    let currentNode = null;
-    while ((currentNode = treeWalker.nextNode())) {
-      previousNode = currentNode;
-    }
-    return previousNode;
-  };
-
-  const getNextNode = (focusNode) => {
-    let seenFocusNode = false;
-    const treeWalker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode: (node) => {
-            if (node.isSameNode(focusNode)) {
-              seenFocusNode = true;
-              return NodeFilter.FILTER_SKIP;
-            }
-            if (!seenFocusNode) {
-              return NodeFilter.FILTER_SKIP;
-            }
-            return node.parentNode.offsetParent &&
-            node.nodeValue.replace(/\s/g, '') ?
-            NodeFilter.FILTER_ACCEPT :
-            NodeFilter.FILTER_SKIP;
-          },
-        },
-    );
-    return treeWalker.nextNode();
-  };
-
-  const getClosestID = (root) => {
-    if (root.id) {
-      return root.id;
-    }
-    let seenRoot = false;
-    const treeWalker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_ELEMENT,
-        {
-          acceptNode: (node) => {
-            if (node.isSameNode(root)) {
-              seenRoot = true;
-            }
-            return node.offsetParent && node.hasAttribute('id') && !seenRoot ?
-            NodeFilter.FILTER_ACCEPT :
-            NodeFilter.FILTER_SKIP;
-          },
-        },
-    );
-    let nodeWithID = null;
-    let currentNode = null;
-    while ((currentNode = treeWalker.nextNode())) {
-      nodeWithID = currentNode;
-    }
-    return nodeWithID ? nodeWithID.id : null;
-  };
-
-  const cleanText = (text) => {
-    // Replace &nbsp; with regular space.
-    return text.replace(/\u00A0/g, ' ');
-  };
-
-  const getText = (sendResponse) => {
+  const createTextFragment = (sendResponse) => {
     const selection = window.getSelection();
-    const selectedText = snapSelectionToWord(selection);
-    let {anchorNode, anchorOffset, focusNode, focusOffset} = selection;
-    // If the selection is backward across nodes, swap the nodes.
-    if (
-      anchorNode.compareDocumentPosition(focusNode) ===
-      Node.DOCUMENT_POSITION_PRECEDING
-    ) {
-      [anchorNode, focusNode] = [focusNode, anchorNode];
-      [anchorOffset, focusOffset] = [focusOffset, anchorOffset];
+    // eslint-disable-next-line no-undef
+    const result = exports.generateFragment(selection);
+    let url = `${location.origin}${location.pathname}${location.search}`;
+    if (result.status === 0) {
+      const fragment = result.fragment;
+      const prefix = fragment.prefix ? `${fragment.prefix}-,` : '';
+      const suffix = fragment.suffix ? `,-${fragment.suffix}` : '';
+      const textStart = fragment.textStart;
+      const textEnd = fragment.textEnd ? `,${fragment.textEnd}` : '';
+      url = `${url}#:~:text=${prefix}${textStart}${textEnd}${suffix}`;
+      copyToClipboard(url, selection.toString());
+      reportSuccess();
+    } else {
+      reportFailure();
     }
-    const pageText = document.body.innerText.trim();
-    const textBeforeSelection = anchorNode.textContent
-        .substr(0, anchorOffset)
-        .trim();
-    const textAfterSelection = focusNode.textContent.substr(focusOffset).trim();
-    const closestElementFragment = getClosestID(anchorNode.parentNode);
-    const previousNode = getPreviousNode(anchorNode);
-    const nextNode = getNextNode(focusNode);
-    const textNodeBeforeSelection = previousNode ?
-      previousNode.nodeType === 3 ?
-        previousNode.nodeValue :
-        previousNode.innerText :
-      '';
-    const textNodeAfterSelection = nextNode ?
-      nextNode.nodeType === 3 ?
-        nextNode.nodeValue :
-        nextNode.innerText :
-      '';
-    const data = {
-      selectedText: cleanText(selectedText),
-      pageText: cleanText(pageText),
-      textBeforeSelection: cleanText(textBeforeSelection),
-      textAfterSelection: cleanText(textAfterSelection),
-      textNodeBeforeSelection: cleanText(textNodeBeforeSelection),
-      textNodeAfterSelection: cleanText(textNodeAfterSelection),
-      closestElementFragment,
-    };
-    log(data);
-    return data;
   };
 
-  const reportSuccess = (url) => {
-    log(url);
+  const reportSuccess = () => {
     const style = document.createElement('style');
     document.head.append(style);
     const sheet = style.sheet;
@@ -205,59 +70,61 @@
     return true;
   };
 
-  const copyToClipboard = async (result) => {
-    const {url, selectedText} = result;
-    // Try to use the Async Clipboard API with fallback to the legacy approach.
-    try {
-      const {state} = await navigator.permissions.query({
-        name: 'clipboard-write',
-      });
-      if (state !== 'granted') {
-        throw new Error('Clipboard permission not granted');
-      }
-      const clipboardData = [
-        new ClipboardItem({
+  const copyToClipboard = (url, selectedText) => {
+    browser.storage.sync.get({linkStyle: 'rich'}, async (items) => {
+      const linkStyle = items.linkStyle;
+      // Try to use the Async Clipboard API with fallback to the legacy API.
+      try {
+        const {state} = await navigator.permissions.query({
+          name: 'clipboard-write',
+        });
+        if (state !== 'granted') {
+          throw new Error('Clipboard permission not granted');
+        }
+        const clipboardItems = {
           'text/plain': new Blob([url], {type: 'text/plain'}),
-          'text/html': new Blob([`<a href="${url}">${selectedText}</a>`], {
-            type: 'text/html',
-          }),
-          /* // ToDo: Activate once supported.
-          'text/rtf': new Blob(
+        };
+        if (linkStyle === 'rich') {
+          clipboardItems['text/html'] = new Blob(
+              [`<a href="${url}">${selectedText}</a>`],
+              {
+                type: 'text/html',
+              },
+          );
+          // ToDo: Activate once supported.
+          /*
+          clipboardItems['text/rtf'] = new Blob(
             [
-
               `{\field{\*\fldinst HYPERLINK "${url}"}{\fldrslt ${
                   selectedText}}}`,
             ],
-            { type: 'text/rtf' }
-          ),
+            {
+              type: 'text/rtf',
+            }
+          );
           */
-        }),
-      ];
-      /* global ClipboardItem */
-      await navigator.clipboard.write(clipboardData);
-    } catch (err) {
-      console.warn(err.name, err.message);
-      const textArea = document.createElement('textarea');
-      document.body.append(textArea);
-      textArea.textContent = url;
-      textArea.select();
-      document.execCommand('copy');
-      textArea.remove();
-    }
-    log('🎉', url, '\n\n\n');
-    return true;
+        }
+        const clipboardData = [new ClipboardItem(clipboardItems)];
+        /* global ClipboardItem */
+        await navigator.clipboard.write(clipboardData);
+      } catch (err) {
+        console.warn(err.name, err.message);
+        const textArea = document.createElement('textarea');
+        document.body.append(textArea);
+        textArea.textContent = url;
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      log('🎉', url);
+      return true;
+    });
   };
 
   browser.runtime.onMessage.addListener((request, _, sendResponse) => {
     const message = request.message;
-    if (message === 'get-text') {
-      return sendResponse(getText());
-    } else if (message === 'success') {
-      return sendResponse(reportSuccess(request.data));
-    } else if (message === 'copy-url') {
-      return sendResponse(copyToClipboard(request.data));
-    } else if (message === 'failure') {
-      return sendResponse(reportFailure());
+    if (message === 'create-text-fragment') {
+      return sendResponse(createTextFragment());
     } else if (message === 'debug') {
       return sendResponse((DEBUG = request.data) || true);
     } else if (message === 'ping') {

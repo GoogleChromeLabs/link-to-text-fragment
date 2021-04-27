@@ -1,13 +1,21 @@
 {
   "name": "__MSG_extension_name__",
   "short_name": "__MSG_extension_short_name__",
-  "version": "1.2.1",
+  "version": "2.0.0",
   "description": "__MSG_extension_description__",
   "background": {
-    "scripts": ["background_script.js"],
+    "scripts": [
+      "prepare.js",
+      "fragment-generation-utils.js",
+      "background_script.js"
+    ],
     "persistent": false
   },
-  "permissions": ["activeTab", "contextMenus", "clipboardWrite"],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "permissions": ["activeTab", "contextMenus", "clipboardWrite", "storage"],
   "optional_permissions": ["http://*/*", "https://*/*"],
   "manifest_version": 2,
   "icons": {

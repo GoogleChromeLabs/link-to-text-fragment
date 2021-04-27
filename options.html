@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Options</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Link copy style:</h1>
+    <form>
+      <p>
+        <label
+          ><input type="radio" id="rich" name="style" />
+          <strong>Rich</strong> (Copies a link to the selected text.)</label
+        >
+      </p>
+      <p>
+        <label
+          ><input type="radio" id="raw" name="style" />
+          <strong>Raw</strong> (Copies just the URL.)</label
+        >
+      </p>
+    </form>
+    <script src="options.js"></script>
+  </body>
+</html>
