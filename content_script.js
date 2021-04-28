@@ -29,10 +29,16 @@
     let url = `${location.origin}${location.pathname}${location.search}`;
     if (result.status === 0) {
       const fragment = result.fragment;
-      const prefix = fragment.prefix ? `${fragment.prefix}-,` : '';
-      const suffix = fragment.suffix ? `,-${fragment.suffix}` : '';
-      const textStart = fragment.textStart;
-      const textEnd = fragment.textEnd ? `,${fragment.textEnd}` : '';
+      const prefix = fragment.prefix ?
+        `${encodeURIComponent(fragment.prefix)}-,` :
+        '';
+      const suffix = fragment.suffix ?
+        `,-${encodeURIComponent(fragment.suffix)}` :
+        '';
+      const textStart = encodeURIComponent(fragment.textStart);
+      const textEnd = fragment.textEnd ?
+        `,${encodeURIComponent(fragment.textEnd)}` :
+        '';
       url = `${url}#:~:text=${prefix}${textStart}${textEnd}${suffix}`;
       copyToClipboard(url, selection.toString());
       reportSuccess();

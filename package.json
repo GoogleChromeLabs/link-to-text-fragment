@@ -1,6 +1,6 @@
 {
   "name": "link-to-text-fragment",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Browser extension that allows for linking to arbitrary text fragments.",
   "scripts": {
     "fix": "npx prettier --write .",
@@ -30,7 +30,7 @@
     "@babel/preset-env": "^7.13.15",
     "@babel/runtime-corejs3": "^7.13.17",
     "core-js": "^3.11.0",
-    "eslint": "^7.24.0",
+    "eslint": "^7.25.0",
     "eslint-config-google": "^0.14.0",
     "rollup": "^2.45.2",
     "shx": "^0.3.3",
