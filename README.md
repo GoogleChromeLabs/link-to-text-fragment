@@ -23,7 +23,7 @@ of text fragment URLs via the context menu:
 1. If the link creation succeeded, the selected text will be briefly highlighted in yellow.
 1. Paste your link wherever you want to share it.
 
-![Text fragment selected on a webpage and contextmenu showing "Copy Link to Selected Text"](https://github.com/GoogleChromeLabs/link-to-text-fragment/blob/master/store-assets/screenshot-contextmenu-1280x800.png?raw=true)
+![Text fragment selected on a webpage and contextmenu showing "Copy Link to Selected Text"](https://github.com/GoogleChromeLabs/link-to-text-fragment/blob/main/store-assets/screenshot-contextmenu-1280x800.png?raw=true)
 
 ## Background
 
