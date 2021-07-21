@@ -23,7 +23,7 @@ exports.setTimeout = exports.isValidRangeForFragmentGeneration = exports.generat
 // Block elements. elements of a text fragment cannot cross the boundaries of a
 // block element. Source for the list:
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Block-level_elements#Elements
-const BLOCK_ELEMENTS = ['ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DETAILS', 'DIALOG', 'DD', 'DIV', 'DL', 'DT', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HGROUP', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'UL', 'TR', 'TH', 'TD', 'COLGROUP', 'COL', 'CAPTION', 'THEAD', 'TBODY', 'TFOOT']; // Characters that indicate a word boundary. Use the script
+const BLOCK_ELEMENTS = ['ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'BR', 'DETAILS', 'DIALOG', 'DD', 'DIV', 'DL', 'DT', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HGROUP', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'UL', 'TR', 'TH', 'TD', 'COLGROUP', 'COL', 'CAPTION', 'THEAD', 'TBODY', 'TFOOT']; // Characters that indicate a word boundary. Use the script
 // tools/generate-boundary-regex.js if it's necessary to modify or regenerate
 // this. Because it's a hefty regex, this should be used infrequently and only
 // on single-character strings.
@@ -60,12 +60,13 @@ const processTextFragmentDirective = textFragment => {
 
 
       advanceRangeStartPastOffset(searchRange, prefixMatch.startContainer, prefixMatch.startOffset); // The search space for textStart is everything after the prefix and
-      // before the end of the top-level search range.
+      // before the end of the top-level search range, starting at the next non-
+      // whitespace position.
 
       const matchRange = document.createRange();
       matchRange.setStart(prefixMatch.endContainer, prefixMatch.endOffset);
       matchRange.setEnd(searchRange.endContainer, searchRange.endOffset);
-      advanceRangeStartToNonBoundary(matchRange);
+      advanceRangeStartToNonWhitespace(matchRange);
 
       if (matchRange.collapsed) {
         break;
@@ -181,7 +182,7 @@ const checkSuffix = (suffix, potentialMatch, searchRange) => {
   const suffixRange = document.createRange();
   suffixRange.setStart(potentialMatch.endContainer, potentialMatch.endOffset);
   suffixRange.setEnd(searchRange.endContainer, searchRange.endOffset);
-  advanceRangeStartToNonBoundary(suffixRange);
+  advanceRangeStartToNonWhitespace(suffixRange);
   const suffixMatch = findTextInRange(suffix, suffixRange); // If suffix wasn't found anywhere in the suffixRange, then there's no
   // possible match and we can stop early.
 
@@ -216,13 +217,12 @@ const advanceRangeStartPastOffset = (range, node, offset) => {
   }
 };
 /**
- * Modifies |range| to start at the next non-boundary (i.e., not whitespace
- * or punctuation) character.
+ * Modifies |range| to start at the next non-whitespace position.
  * @param {Range} range - the range to mutate
  */
 
 
-const advanceRangeStartToNonBoundary = range => {
+const advanceRangeStartToNonWhitespace = range => {
   const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, node => {
     return filterFunction(node, range);
   });
@@ -236,7 +236,7 @@ const advanceRangeStartToNonBoundary = range => {
     if (node.textContent.length > range.startOffset) {
       const firstChar = node.textContent[range.startOffset];
 
-      if (!firstChar.match(BOUNDARY_CHARS)) {
+      if (!firstChar.match(/\s/)) {
         return;
       }
     }
@@ -794,7 +794,7 @@ const doGenerateFragment = (selection, startTime) => {
       // was found. That means textStart and textEnd *share* a search space, so
       // our approach must ensure the substrings chosen as candidates don't
       // overlap.
-      factory = new FragmentFactory().setSharedSearchSpace(trimBoundary(range.toString()));
+      factory = new FragmentFactory().setSharedSearchSpace(range.toString().trim());
     }
   }
 
@@ -806,7 +806,7 @@ const doGenerateFragment = (selection, startTime) => {
   const prefixSearchSpace = getSearchSpaceForEnd(prefixRange);
   const suffixSearchSpace = getSearchSpaceForStart(suffixRange);
 
-  if (prefixSearchSpace && suffixSearchSpace) {
+  if (prefixSearchSpace || suffixSearchSpace) {
     factory.setPrefixAndSuffixSearchSpace(prefixSearchSpace, suffixSearchSpace);
   }
 
@@ -855,12 +855,12 @@ const recordStartTime = newStartTime => {
 /**
  * Finds the search space for parameters when using range or suffix match.
  * This is the text from the start of the range to the first block boundary,
- * trimmed to remove any leading/trailing boundary characters.
+ * trimmed to remove any leading/trailing whitespace characters.
  * @param {Range} range - the range which will be highlighted.
  * @return {String|Undefined} - the text which may be used for constructing a
  *     textStart parameter identifying this range. Will return undefined if no
  *     block boundaries are found inside this range, or if all the candidate
- *     ranges were empty (or included only boundary characters).
+ *     ranges were empty (or included only whitespace characters).
  */
 
 
@@ -891,7 +891,7 @@ const getSearchSpaceForStart = range => {
     if (isBlock(node)) {
       const candidate = range.cloneRange();
       candidate.setEnd(tempRange.startContainer, tempRange.startOffset);
-      const trimmed = trimBoundary(candidate.toString());
+      const trimmed = candidate.toString().trim();
 
       if (trimmed.length > 0) {
         return trimmed;
@@ -906,12 +906,12 @@ const getSearchSpaceForStart = range => {
 /**
  * Finds the search space for parameters when using range or prefix match.
  * This is the text from the last block boundary to the end of the range,
- * trimmed to remove any leading/trailing boundary characters.
+ * trimmed to remove any leading/trailing whitespace characters.
  * @param {Range} range - the range which will be highlighted.
  * @return {String|Undefined} - the text which may be used for constructing a
  *     textEnd parameter identifying this range. Will return undefined if no
  *     block boundaries are found inside this range, or if all the candidate
- *     ranges were empty (or included only boundary characters).
+ *     ranges were empty (or included only whitespace characters).
  */
 
 
@@ -942,7 +942,7 @@ const getSearchSpaceForEnd = range => {
     if (isBlock(node)) {
       const candidate = range.cloneRange();
       candidate.setStart(tempRange.endContainer, tempRange.endOffset);
-      const trimmed = trimBoundary(candidate.toString());
+      const trimmed = candidate.toString().trim();
 
       if (trimmed.length > 0) {
         return trimmed;
@@ -998,13 +998,13 @@ const FragmentFactory = class {
       };
     } else {
       fragment = {
-        textStart: trimBoundary(this.getStartSearchSpace().substring(0, this.startOffset)),
-        textEnd: trimBoundary(this.getEndSearchSpace().substring(this.endOffset))
+        textStart: this.getStartSearchSpace().substring(0, this.startOffset).trim(),
+        textEnd: this.getEndSearchSpace().substring(this.endOffset).trim()
       };
     }
 
     if (this.prefixOffset != null) {
-      const prefix = trimBoundary(this.getPrefixSearchSpace().substring(this.prefixOffset));
+      const prefix = this.getPrefixSearchSpace().substring(this.prefixOffset).trim();
 
       if (prefix) {
         fragment.prefix = prefix;
@@ -1012,7 +1012,7 @@ const FragmentFactory = class {
     }
 
     if (this.suffixOffset != null) {
-      const suffix = trimBoundary(this.getSuffixSearchSpace().substring(0, this.suffixOffset));
+      const suffix = this.getSuffixSearchSpace().substring(0, this.suffixOffset).trim();
 
       if (suffix) {
         fragment.suffix = suffix;
@@ -1197,11 +1197,17 @@ const FragmentFactory = class {
 
 
   setPrefixAndSuffixSearchSpace(prefixSearchSpace, suffixSearchSpace) {
-    this.prefixSearchSpace = prefixSearchSpace;
-    this.backwardsPrefixSearchSpace = reverseString(prefixSearchSpace);
-    this.prefixOffset = prefixSearchSpace.length;
-    this.suffixSearchSpace = suffixSearchSpace;
-    this.suffixOffset = 0;
+    if (prefixSearchSpace) {
+      this.prefixSearchSpace = prefixSearchSpace;
+      this.backwardsPrefixSearchSpace = reverseString(prefixSearchSpace);
+      this.prefixOffset = prefixSearchSpace.length;
+    }
+
+    if (suffixSearchSpace) {
+      this.suffixSearchSpace = suffixSearchSpace;
+      this.suffixOffset = 0;
+    }
+
     return this;
   }
   /**
@@ -1306,21 +1312,6 @@ const FragmentFactory = class {
 
 const isUniquelyIdentifying = fragment => {
   return processTextFragmentDirective(fragment).length === 1;
-};
-/**
- * Analogous to the standard String trim method, but removes any boundary chars,
- * not just whitespace.
- * @param {String} string - the string to trim
- * @return {String} - the trimmed string
- */
-
-
-const trimBoundary = string => {
-  const startIndex = string.search(internal.NON_BOUNDARY_CHARS);
-  let endIndex = reverseString(string).search(internal.NON_BOUNDARY_CHARS);
-  if (endIndex !== -1) endIndex = string.length - endIndex;
-  if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) return '';
-  return string.substring(startIndex, endIndex);
 };
 /**
  * Reverses a string. Compound unicode characters are preserved.
@@ -1607,14 +1598,17 @@ const createForwardOverrideMap = walker => {
       if (ancestors.has(walker.currentNode)) {
         break;
       }
-    } // Set the mapping from the found child to its ancestor.
+    } // Remember the current override, if any, for the found child.
 
 
-    if (walker.currentNode !== node) overrideMap.set(walker.currentNode, node); // Next, set a mapping from the ancestor to the node it displaced in the
-    // ordering. This might get overwritten later if another ancestor needs to
-    // get inserted in the ordering too.
+    const previousOverride = overrideMap.get(walker.currentNode); // Set a mapping from the found child to its ancestor.
 
-    overrideMap.set(node, walker.nextNode()); // Reset the walker to where it was before we traversed downwards.
+    if (walker.currentNode !== node) overrideMap.set(walker.currentNode, node); // Also set a mapping from the ancestor to the child's next node, which is
+    // |TreeWalker.nextNode()| unless it had already been overridden in the map.
+    // This override might change in a later iteration if another ancestor needs
+    // to get inserted in the ordering too.
+
+    overrideMap.set(node, previousOverride || walker.nextNode()); // Reset the walker to where it was before we traversed downwards.
 
     walker.currentNode = node;
   } while (walker.parentNode() != null);
@@ -1769,8 +1763,7 @@ const forTesting = {
   FragmentFactory: FragmentFactory,
   getSearchSpaceForEnd: getSearchSpaceForEnd,
   getSearchSpaceForStart: getSearchSpaceForStart,
-  recordStartTime: recordStartTime,
-  trimBoundary: trimBoundary
+  recordStartTime: recordStartTime
 }; // Allow importing module from closure-compiler projects that haven't migrated
 // to ES6 modules.
 
