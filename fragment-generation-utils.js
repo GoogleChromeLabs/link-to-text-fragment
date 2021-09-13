@@ -373,9 +373,10 @@ function* getElementsIn(root, filter) {
 
 const findTextInRange = (query, range) => {
   const textNodeLists = getAllTextNodes(range.commonAncestorContainer, range);
+  const segmenter = makeNewSegmenter();
 
   for (const list of textNodeLists) {
-    const found = findRangeFromNodeList(query, range, list);
+    const found = findRangeFromNodeList(query, range, list, segmenter);
     if (found !== undefined) return found;
   }
 
@@ -387,12 +388,14 @@ const findTextInRange = (query, range) => {
  * @param {String} query - the string to find
  * @param {Range} range - the range in which to search
  * @param {Node[]} textNodes - the visible text nodes within |range|
+ * @param {Intl.Segmenter} [segmenter] - a segmenter to be used for finding word
+ *     boundaries, if supported
  * @return {Range} - the found range, or undefined if no such range could be
  *     found
  */
 
 
-const findRangeFromNodeList = (query, range, textNodes) => {
+const findRangeFromNodeList = (query, range, textNodes, segmenter) => {
   if (!query || !range || !(textNodes || []).length) return undefined;
   const data = normalizeString(getTextContent(textNodes, 0, undefined));
   const normalizedQuery = normalizeString(query);
@@ -404,7 +407,7 @@ const findRangeFromNodeList = (query, range, textNodes) => {
     const matchIndex = data.indexOf(normalizedQuery, searchStart);
     if (matchIndex === -1) return undefined;
 
-    if (isWordBounded(data, matchIndex, normalizedQuery.length)) {
+    if (isWordBounded(data, matchIndex, normalizedQuery.length, segmenter)) {
       start = getBoundaryPointAtIndex(matchIndex, textNodes,
       /* isEnd=*/
       false);
@@ -508,48 +511,81 @@ const getBoundaryPointAtIndex = (index, textNodes, isEnd) => {
 };
 /**
  * Checks if a substring is word-bounded in the context of a longer string.
- * It's not feasible to match the spec exactly as Intl.Segmenter is not yet
- * widely supported. Instead, returns true iff:
+ *
+ * If an Intl.Segmenter is provided for locale-specific segmenting, it will be
+ * used for this check. This is the most desirable option, but not supported in
+ * all browsers.
+ *
+ * If one is not provided, a heuristic will be applied,
+ * returning true iff:
  *  - startPos == 0 OR char before start is a boundary char, AND
  *  - length indicates end of string OR char after end is a boundary char
  * Where boundary chars are whitespace/punctuation defined in the const above.
- *
  * This causes the known issue that some languages, notably Japanese, only match
  * at the level of roughly a full clause or sentence, rather than a word.
+ *
  * @param {String} text - the text to search
  * @param {Number} startPos - the index of the start of the substring
  * @param {Number} length - the length of the substring
+ * @param {Intl.Segmenter} [segmenter] - a segmenter to be used for finding word
+ *     boundaries, if supported
  * @return {bool} - true iff startPos and length point to a word-bounded
  *     substring of |text|.
  */
 
 
-const isWordBounded = (text, startPos, length) => {
+const isWordBounded = (text, startPos, length, segmenter) => {
   if (startPos < 0 || startPos >= text.length || length <= 0 || startPos + length > text.length) {
     return false;
-  } // If the first character is already a boundary, move it once.
-
-
-  if (text[startPos].match(BOUNDARY_CHARS)) {
-    ++startPos;
-    --length;
-
-    if (!length) {
-      return false;
-    }
-  } // If the last character is already a boundary, move it once.
-
-
-  if (text[startPos + length - 1].match(BOUNDARY_CHARS)) {
-    --length;
-
-    if (!length) {
-      return false;
-    }
   }
 
-  if (startPos !== 0 && !text[startPos - 1].match(BOUNDARY_CHARS)) return false;
-  if (startPos + length !== text.length && !text[startPos + length].match(BOUNDARY_CHARS)) return false;
+  if (segmenter) {
+    // If the Intl.Segmenter API is available on this client, use it for more
+    // reliable word boundary checking.
+    const segments = segmenter.segment(text);
+    const startSegment = segments.containing(startPos);
+    if (!startSegment) return false; // If the start index is inside a word segment but not the first character
+    // in that segment, it's not word-bounded. If it's not a word segment, then
+    // it's punctuation, etc., so that counts for word bounding.
+
+    if (startSegment.isWordLike && startSegment.index != startPos) return false; // |endPos| points to the first character outside the target substring.
+
+    const endPos = startPos + length;
+    const endSegment = segments.containing(endPos); // If there's no end segment found, it's because we're at the end of the
+    // text, which is a valid boundary. (Because of the preconditions we
+    // checked above, we know we aren't out of range.)
+    // If there's an end segment found but it's non-word-like, that's also OK,
+    // since punctuation and whitespace are acceptable boundaries.
+    // Lastly, if there's an end segment and it is word-like, then |endPos|
+    // needs to point to the start of that new word, or |endSegment.index|.
+
+    if (endSegment && endSegment.isWordLike && endSegment.index != endPos) return false;
+  } else {
+    // We don't have Intl.Segmenter support, so fall back to checking whether or
+    // not the substring is flanked by boundary characters.
+    // If the first character is already a boundary, move it once.
+    if (text[startPos].match(BOUNDARY_CHARS)) {
+      ++startPos;
+      --length;
+
+      if (!length) {
+        return false;
+      }
+    } // If the last character is already a boundary, move it once.
+
+
+    if (text[startPos + length - 1].match(BOUNDARY_CHARS)) {
+      --length;
+
+      if (!length) {
+        return false;
+      }
+    }
+
+    if (startPos !== 0 && !text[startPos - 1].match(BOUNDARY_CHARS)) return false;
+    if (startPos + length !== text.length && !text[startPos + length].match(BOUNDARY_CHARS)) return false;
+  }
+
   return true;
 };
 /**
@@ -568,6 +604,28 @@ const normalizeString = str => {
   return (str || '').normalize('NFKD').replace(/\s+/g, ' ').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 };
 /**
+ * @return {Intl.Segmenter|undefined} - a segmenter object suitable for finding
+ *     word boundaries. Returns undefined on browsers/platforms that do not yet
+ *     support the Intl.Segmenter API.
+ */
+
+
+const makeNewSegmenter = () => {
+  if (Intl.Segmenter) {
+    let lang = document.documentElement.lang;
+
+    if (!lang) {
+      lang = navigator.languages;
+    }
+
+    return new Intl.Segmenter(lang, {
+      granularity: 'word'
+    });
+  }
+
+  return undefined;
+};
+/**
  * Should only be used by other files in this directory.
  */
 
@@ -577,7 +635,8 @@ const internal = {
   BOUNDARY_CHARS: BOUNDARY_CHARS,
   NON_BOUNDARY_CHARS: NON_BOUNDARY_CHARS,
   filterFunction: filterFunction,
-  normalizeString: normalizeString
+  normalizeString: normalizeString,
+  makeNewSegmenter: makeNewSegmenter
 }; // Allow importing module from closure-compiler projects that haven't migrated
 // to ES6 modules.
 
@@ -1570,6 +1629,69 @@ const expandRangeStartToWordBound = range => {
   range.collapse();
 };
 /**
+ * @typedef {Object} TextNodeLists - the result of traversing the DOM to
+ *     extract TextNodes
+ * @property {TextNode[]} preNodes - the nodes appearing before a specified
+ *     starting node
+ * @property {TextNode[]} postNodes - the nodes appearing after a specified
+ *     starting node
+ */
+
+/**
+ * Traverses the DOM to extact all TextNodes appearing in the same block level
+ * as |node| (i.e., those that are descendents of a common ancestor of |node|
+ * with no other block elements in between.)
+ * @param {TextNode} node
+ * @returns {TextNodeLists}
+ */
+
+
+const getTextNodesInSameBlock = node => {
+  const preNodes = []; // First, backtraverse to get to a block boundary
+
+  const backWalker = makeWalkerForNode(node);
+
+  if (!backWalker) {
+    return;
+  }
+
+  const visited = new Set();
+  const origin = backWalker.currentNode;
+  let backNode = backwardTraverse(backWalker, visited, origin);
+
+  while (backNode != null && !isBlock(backNode)) {
+    if (backNode.nodeType === Node.TEXT_NODE) {
+      preNodes.push(backNode);
+    }
+
+    backNode = backwardTraverse(backWalker, visited, origin);
+  }
+
+  preNodes.reverse();
+  const postNodes = [];
+  const forwardWalker = makeWalkerForNode(node);
+
+  if (!forwardWalker) {
+    return;
+  }
+
+  const overrideMap = createForwardOverrideMap(forwardWalker);
+  let forwardNode = forwardTraverse(forwardWalker, overrideMap);
+
+  while (forwardNode != null && !isBlock(forwardNode)) {
+    if (forwardNode.nodeType === Node.TEXT_NODE) {
+      postNodes.push(forwardNode);
+    }
+
+    forwardNode = forwardTraverse(forwardWalker, overrideMap);
+  }
+
+  return {
+    preNodes: preNodes,
+    postNodes: postNodes
+  };
+};
+/**
  * Helper method to create an override map which will "inject" the ancestors of
  * the walker's starting node into traversal order, when using forwardTraverse.
  * By traversing these ancestor nodes after their children (postorder), we can
@@ -1763,6 +1885,7 @@ const forTesting = {
   FragmentFactory: FragmentFactory,
   getSearchSpaceForEnd: getSearchSpaceForEnd,
   getSearchSpaceForStart: getSearchSpaceForStart,
+  getTextNodesInSameBlock: getTextNodesInSameBlock,
   recordStartTime: recordStartTime
 }; // Allow importing module from closure-compiler projects that haven't migrated
 // to ES6 modules.

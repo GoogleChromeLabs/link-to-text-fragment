@@ -80,11 +80,19 @@
     }
   };
 
-  browser.contextMenus.create({
-    title: browser.i18n.getMessage('copy_link'),
-    id: 'copy-link',
-    contexts: ['selection'],
-  });
+  browser.contextMenus.create(
+      {
+        title: browser.i18n.getMessage('copy_link'),
+        id: 'copy-link',
+        contexts: ['selection'],
+      },
+      () => {
+        const lastError = browser.runtime.lastError;
+        if (lastError) {
+          console.log('Error creating context menu item:', lastError);
+        }
+      },
+  );
 
   browser.commands.onCommand.addListener(async (command) => {
     if (command === 'copy_link') {
