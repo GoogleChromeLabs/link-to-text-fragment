@@ -87,9 +87,11 @@
         contexts: ['selection'],
       },
       () => {
-        const lastError = browser.runtime.lastError;
-        if (lastError) {
-          console.log('Error creating context menu item:', lastError);
+        if (browser.runtime.lastError) {
+          console.log(
+              'Error creating context menu item:',
+              browser.runtime.lastError,
+          );
         }
       },
   );

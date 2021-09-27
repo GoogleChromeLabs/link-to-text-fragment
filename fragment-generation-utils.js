@@ -662,7 +662,10 @@ if (typeof goog !== 'undefined') {
 
 
 const MAX_EXACT_MATCH_LENGTH = 300;
-const ITERATIONS_BEFORE_ADDING_CONTEXT = 3;
+const MIN_LENGTH_WITHOUT_CONTEXT = 20;
+const ITERATIONS_BEFORE_ADDING_CONTEXT = 1;
+const WORDS_TO_ADD_FIRST_ITERATION = 3;
+const WORDS_TO_ADD_SUBSEQUENT_ITERATIONS = 1;
 const TRUNCATE_RANGE_CHECK_CHARS = 10000;
 const MAX_DEPTH = 500; // Desired max run time, in ms. Can be overwritten.
 
@@ -691,7 +694,9 @@ const GenerateFragmentStatus = {
   // The selection provided could not be used.
   AMBIGUOUS: 2,
   // No unique fragment could be identified for this selection.
-  TIMEOUT: 3 // Computation could not complete in time.
+  TIMEOUT: 3,
+  // Computation could not complete in time.
+  EXECUTION_FAILED: 4 // An exception was raised during generation.
 
 };
 /**
@@ -716,9 +721,15 @@ const generateFragment = (selection, startTime = Date.now()) => {
   try {
     return doGenerateFragment(selection, startTime);
   } catch (err) {
-    return {
-      status: GenerateFragmentStatus.TIMEOUT
-    };
+    if (err.isTimeout) {
+      return {
+        status: GenerateFragmentStatus.TIMEOUT
+      };
+    } else {
+      return {
+        status: GenerateFragmentStatus.EXECUTION_FAILED
+      };
+    }
   }
 };
 /**
@@ -819,17 +830,16 @@ const doGenerateFragment = (selection, startTime) => {
     };
   }
 
-  let factory; // First, try the easy case of just using the range text as the fragment.
+  let factory;
 
-  const exactText = internal.normalizeString(range.toString());
-  const exactMatchResult = canUseExactMatch(range);
-
-  if (exactMatchResult) {
+  if (canUseExactMatch(range)) {
+    const exactText = internal.normalizeString(range.toString());
     const fragment = {
       textStart: exactText
-    };
+    }; // If the exact text is long enough to be used on its own, try this and skip
+    // the longer process below.
 
-    if (isUniquelyIdentifying(fragment)) {
+    if (exactText.length >= MIN_LENGTH_WITHOUT_CONTEXT && isUniquelyIdentifying(fragment)) {
       return {
         status: GenerateFragmentStatus.SUCCESS,
         fragment: fragment
@@ -868,6 +878,8 @@ const doGenerateFragment = (selection, startTime) => {
   if (prefixSearchSpace || suffixSearchSpace) {
     factory.setPrefixAndSuffixSearchSpace(prefixSearchSpace, suffixSearchSpace);
   }
+
+  factory.useSegmenter(internal.makeNewSegmenter());
 
   while (factory.embiggen()) {
     const fragment = factory.tryToMakeUniqueFragment();
@@ -1108,27 +1120,40 @@ const FragmentFactory = class {
       canExpandRange = false;
     }
 
-    let canExpandContext = false; // Context is only added when the range match space is exhausted, or after
-    // a set number of iterations, whichever comes first.
-
-    if (!canExpandRange || this.numIterations >= ITERATIONS_BEFORE_ADDING_CONTEXT) {
-      // Check if there's any unused search space left.
-      if (this.backwardsPrefixOffset() != null && this.backwardsPrefixOffset() !== this.getPrefixSearchSpace().length || this.suffixOffset != null && this.suffixOffset !== this.getSuffixSearchSpace().length) {
-        canExpandContext = true;
-      }
-    }
-
     if (canExpandRange) {
-      if (this.startOffset < this.getStartSearchSpace().length) {
-        // Find the next boundary char.
-        // TODO: should keep going if we haven't added any non boundary chars.
-        const newStartOffset = this.getStartSearchSpace().substring(this.startOffset + 1).search(internal.BOUNDARY_CHARS);
+      const desiredIterations = this.getNumberOfRangeWordsToAdd();
 
-        if (newStartOffset === -1) {
-          this.startOffset = this.getStartSearchSpace().length;
+      if (this.startOffset < this.getStartSearchSpace().length) {
+        let i = 0;
+
+        if (this.getStartSegments() != null) {
+          while (i < desiredIterations && this.startOffset < this.getStartSearchSpace().length) {
+            this.startOffset = this.getNextOffsetForwards(this.getStartSegments(), this.startOffset, this.getStartSearchSpace());
+            i++;
+          }
         } else {
-          this.startOffset = this.startOffset + 1 + newStartOffset;
-        } // Ensure we don't have overlapping start and end segments.
+          // We don't have a segmenter, so find the next boundary character
+          // instead. Shift to the next boundary char, and repeat until we've
+          // added a word char.
+          let oldStartOffset = this.startOffset;
+
+          do {
+            checkTimeout();
+            const newStartOffset = this.getStartSearchSpace().substring(this.startOffset + 1).search(internal.BOUNDARY_CHARS);
+
+            if (newStartOffset === -1) {
+              this.startOffset = this.getStartSearchSpace().length;
+            } else {
+              this.startOffset = this.startOffset + 1 + newStartOffset;
+            } // Only count as an iteration if a word character was added.
+
+
+            if (this.getStartSearchSpace().substring(oldStartOffset, this.startOffset).search(internal.NON_BOUNDARY_CHARS) !== -1) {
+              oldStartOffset = this.startOffset;
+              i++;
+            }
+          } while (this.startOffset < this.getStartSearchSpace().length && i < desiredIterations);
+        } // Ensure we don't have overlapping start and end offsets.
 
 
         if (this.mode === this.Mode.SHARED_START_AND_END) {
@@ -1137,15 +1162,35 @@ const FragmentFactory = class {
       }
 
       if (this.backwardsEndOffset() < this.getEndSearchSpace().length) {
-        // Find the next boundary char.
-        // TODO: should keep going if we haven't added any non boundary chars.
-        const newBackwardsOffset = this.getBackwardsEndSearchSpace().substring(this.backwardsEndOffset() + 1).search(internal.BOUNDARY_CHARS);
+        let i = 0;
 
-        if (newBackwardsOffset === -1) {
-          this.setBackwardsEndOffset(this.getEndSearchSpace().length);
+        if (this.getEndSegments() != null) {
+          while (i < desiredIterations && this.endOffset > 0) {
+            this.endOffset = this.getNextOffsetBackwards(this.getEndSegments(), this.endOffset);
+            i++;
+          }
         } else {
-          this.setBackwardsEndOffset(this.backwardsEndOffset() + 1 + newBackwardsOffset);
-        } // Ensure we don't have overlapping start and end segments.
+          // No segmenter, so shift to the next boundary char, and repeat until
+          // we've added a word char.
+          let oldBackwardsEndOffset = this.backwardsEndOffset();
+
+          do {
+            checkTimeout();
+            const newBackwardsOffset = this.getBackwardsEndSearchSpace().substring(this.backwardsEndOffset() + 1).search(internal.BOUNDARY_CHARS);
+
+            if (newBackwardsOffset === -1) {
+              this.setBackwardsEndOffset(this.getEndSearchSpace().length);
+            } else {
+              this.setBackwardsEndOffset(this.backwardsEndOffset() + 1 + newBackwardsOffset);
+            } // Only count as an iteration if a word character was added.
+
+
+            if (this.getBackwardsEndSearchSpace().substring(oldBackwardsEndOffset, this.backwardsEndOffset()).search(internal.NON_BOUNDARY_CHARS) !== -1) {
+              oldBackwardsEndOffset = this.backwardsEndOffset();
+              i++;
+            }
+          } while (this.backwardsEndOffset() < this.getEndSearchSpace().length && i < desiredIterations);
+        } // Ensure we don't have overlapping start and end offsets.
 
 
         if (this.mode === this.Mode.SHARED_START_AND_END) {
@@ -1154,24 +1199,77 @@ const FragmentFactory = class {
       }
     }
 
-    if (canExpandContext) {
-      if (this.backwardsPrefixOffset() < this.getPrefixSearchSpace().length) {
-        const newBackwardsPrefixOffset = this.getBackwardsPrefixSearchSpace().substring(this.backwardsPrefixOffset() + 1).search(internal.BOUNDARY_CHARS);
+    let canExpandContext = false;
 
-        if (newBackwardsPrefixOffset === -1) {
-          this.setBackwardsPrefixOffset(this.getBackwardsPrefixSearchSpace().length);
+    if (!canExpandRange || this.startOffset + this.backwardsEndOffset() < MIN_LENGTH_WITHOUT_CONTEXT || this.numIterations >= ITERATIONS_BEFORE_ADDING_CONTEXT) {
+      // Check if there's any unused search space left.
+      if (this.backwardsPrefixOffset() != null && this.backwardsPrefixOffset() !== this.getPrefixSearchSpace().length || this.suffixOffset != null && this.suffixOffset !== this.getSuffixSearchSpace().length) {
+        canExpandContext = true;
+      }
+    }
+
+    if (canExpandContext) {
+      const desiredIterations = this.getNumberOfContextWordsToAdd();
+
+      if (this.backwardsPrefixOffset() < this.getPrefixSearchSpace().length) {
+        let i = 0;
+
+        if (this.getPrefixSegments() != null) {
+          while (i < desiredIterations && this.prefixOffset > 0) {
+            this.prefixOffset = this.getNextOffsetBackwards(this.getPrefixSegments(), this.prefixOffset);
+            i++;
+          }
         } else {
-          this.setBackwardsPrefixOffset(this.backwardsPrefixOffset() + 1 + newBackwardsPrefixOffset);
+          // Shift to the next boundary char, and repeat until we've added a
+          // word char.
+          let oldBackwardsPrefixOffset = this.backwardsPrefixOffset();
+
+          do {
+            checkTimeout();
+            const newBackwardsPrefixOffset = this.getBackwardsPrefixSearchSpace().substring(this.backwardsPrefixOffset() + 1).search(internal.BOUNDARY_CHARS);
+
+            if (newBackwardsPrefixOffset === -1) {
+              this.setBackwardsPrefixOffset(this.getBackwardsPrefixSearchSpace().length);
+            } else {
+              this.setBackwardsPrefixOffset(this.backwardsPrefixOffset() + 1 + newBackwardsPrefixOffset);
+            } // Only count as an iteration if a word character was added.
+
+
+            if (this.getBackwardsPrefixSearchSpace().substring(oldBackwardsPrefixOffset, this.backwardsPrefixOffset()).search(internal.NON_BOUNDARY_CHARS) !== -1) {
+              oldBackwardsPrefixOffset = this.backwardsPrefixOffset();
+              i++;
+            }
+          } while (this.backwardsPrefixOffset() < this.getPrefixSearchSpace().length && i < desiredIterations);
         }
       }
 
       if (this.suffixOffset < this.getSuffixSearchSpace().length) {
-        const newSuffixOffset = this.getSuffixSearchSpace().substring(this.suffixOffset + 1).search(internal.BOUNDARY_CHARS);
+        let i = 0;
 
-        if (newSuffixOffset === -1) {
-          this.suffixOffset = this.getSuffixSearchSpace().length;
+        if (this.getSuffixSegments() != null) {
+          while (i < desiredIterations && this.suffixOffset < this.getSuffixSearchSpace().length) {
+            this.suffixOffset = this.getNextOffsetForwards(this.getSuffixSegments(), this.suffixOffset, this.suffixOffset);
+            i++;
+          }
         } else {
-          this.suffixOffset = this.suffixOffset + 1 + newSuffixOffset;
+          let oldSuffixOffset = this.suffixOffset;
+
+          do {
+            checkTimeout();
+            const newSuffixOffset = this.getSuffixSearchSpace().substring(this.suffixOffset + 1).search(internal.BOUNDARY_CHARS);
+
+            if (newSuffixOffset === -1) {
+              this.suffixOffset = this.getSuffixSearchSpace().length;
+            } else {
+              this.suffixOffset = this.suffixOffset + 1 + newSuffixOffset;
+            } // Only count as an iteration if a word character was added.
+
+
+            if (this.getSuffixSearchSpace().substring(oldSuffixOffset, this.suffixOffset).search(internal.NON_BOUNDARY_CHARS) !== -1) {
+              oldSuffixOffset = this.suffixOffset;
+              i++;
+            }
+          } while (this.suffixOffset < this.getSuffixSearchSpace().length && i < desiredIterations);
         }
       }
     }
@@ -1270,6 +1368,135 @@ const FragmentFactory = class {
     return this;
   }
   /**
+   * Sets up the factory to use an instance of Intl.Segmenter when identifying
+   * the start/end of words. |segmenter| is not actually retained; instead it is
+   * used to create segment objects which are cached.
+   *
+   * This must be called AFTER any calls to setStartAndEndSearchSpace,
+   * setSharedSearchSpace, and/or setPrefixAndSuffixSearchSpace, as these search
+   * spaces will be segmented immediately.
+   *
+   * @param {Intl.Segmenter | Undefined} segmenter
+   * @returns {FragmentFactory} - returns |this| to allow call chaining and
+   *     assignment
+   */
+
+
+  useSegmenter(segmenter) {
+    if (segmenter == null) {
+      return this;
+    }
+
+    if (this.mode === this.Mode.ALL_PARTS) {
+      this.startSegments = segmenter.segment(this.startSearchSpace);
+      this.endSegments = segmenter.segment(this.endSearchSpace);
+    } else if (this.mode === this.Mode.SHARED_START_AND_END) {
+      this.sharedSegments = segmenter.segment(this.sharedSearchSpace);
+    }
+
+    if (this.prefixSearchSpace) {
+      this.prefixSegments = segmenter.segment(this.prefixSearchSpace);
+    }
+
+    if (this.suffixSearchSpace) {
+      this.suffixSegments = segmenter.segment(this.suffixSearchSpace);
+    }
+
+    return this;
+  }
+  /**
+   * @returns {number} - how many words should be added to the prefix and suffix
+   *     when embiggening. This changes depending on the current state of the
+   *     prefix/suffix, so it should be invoked once per embiggen, before either
+   *     is modified.
+   */
+
+
+  getNumberOfContextWordsToAdd() {
+    return this.backwardsPrefixOffset() === 0 && this.suffixOffset === 0 ? WORDS_TO_ADD_FIRST_ITERATION : WORDS_TO_ADD_SUBSEQUENT_ITERATIONS;
+  }
+  /**
+   * @returns {number} - how many words should be added to textStart and textEnd
+   *     when embiggening. This changes depending on the current state of
+   *     textStart/textEnd, so it should be invoked once per embiggen, before
+   *     either is modified.
+   */
+
+
+  getNumberOfRangeWordsToAdd() {
+    return this.startOffset === 0 && this.backwardsEndOffset() === 0 ? WORDS_TO_ADD_FIRST_ITERATION : WORDS_TO_ADD_SUBSEQUENT_ITERATIONS;
+  }
+  /**
+   * Helper method for embiggening using Intl.Segmenter. Finds the next offset
+   * to be tried in the forwards direction (i.e., a prefix of the search space).
+   * @param {Segments} segments - the output of segmenting the desired search
+   *     space using Intl.Segmenter
+   * @param {number} offset - the current offset
+   * @param {string} searchSpace - the search space that was segmented
+   * @returns {number} - the next offset which should be tried.
+   */
+
+
+  getNextOffsetForwards(segments, offset, searchSpace) {
+    // Find the nearest wordlike segment and move to the end of it.
+    let currentSegment = segments.containing(offset);
+
+    while (currentSegment != null) {
+      checkTimeout();
+      const currentSegmentEnd = currentSegment.index + currentSegment.segment.length;
+
+      if (currentSegment.isWordLike) {
+        return currentSegmentEnd;
+      }
+
+      currentSegment = segments.containing(currentSegmentEnd);
+    } // If we didn't find a wordlike segment by the end of the string, set the
+    // offset to the full search space.
+
+
+    return searchSpace.length;
+  }
+  /**
+   * Helper method for embiggening using Intl.Segmenter. Finds the next offset
+   * to be tried in the backwards direction (i.e., a suffix of the search
+   * space).
+   * @param {Segments} segments - the output of segmenting the desired search
+   *     space using Intl.Segmenter
+   * @param {number} offset - the current offset
+   * @returns {number} - the next offset which should be tried.
+   */
+
+
+  getNextOffsetBackwards(segments, offset) {
+    // Find the nearest wordlike segment and move to the start of it.
+    let currentSegment = segments.containing(offset); // Handle two edge cases:
+    //     1. |offset| is at the end of the search space, so |currentSegment|
+    //        is undefined
+    //     2. We're already at the start of a segment, so moving to the start of
+    //        |currentSegment| would be a no-op.
+    // In both cases, the solution is to grab the segment immediately
+    // prior to this offset.
+
+    if (!currentSegment || offset == currentSegment.index) {
+      // If offset is 0, this will return null, which is handled below.
+      currentSegment = segments.containing(offset - 1);
+    }
+
+    while (currentSegment != null) {
+      checkTimeout();
+
+      if (currentSegment.isWordLike) {
+        return currentSegment.index;
+      }
+
+      currentSegment = segments.containing(currentSegment.index - 1);
+    } // If we didn't find a wordlike segment by the start of the string,
+    // set the offset to the full search space.
+
+
+    return 0;
+  }
+  /**
    * @return {String} - the string to be used as the search space for textStart
    */
 
@@ -1278,12 +1505,32 @@ const FragmentFactory = class {
     return this.mode === this.Mode.SHARED_START_AND_END ? this.sharedSearchSpace : this.startSearchSpace;
   }
   /**
+   * @returns {Segments | Undefined} - the result of segmenting the start search
+   *     space using Intl.Segmenter, or undefined if a segmenter was not
+   *     provided.
+   */
+
+
+  getStartSegments() {
+    return this.mode === this.Mode.SHARED_START_AND_END ? this.sharedSegments : this.startSegments;
+  }
+  /**
    * @return {String} - the string to be used as the search space for textEnd
    */
 
 
   getEndSearchSpace() {
     return this.mode === this.Mode.SHARED_START_AND_END ? this.sharedSearchSpace : this.endSearchSpace;
+  }
+  /**
+   * @returns {Segments | Undefined} - the result of segmenting the end search
+   *     space using Intl.Segmenter, or undefined if a segmenter was not
+   *     provided.
+   */
+
+
+  getEndSegments() {
+    return this.mode === this.Mode.SHARED_START_AND_END ? this.sharedSegments : this.endSegments;
   }
   /**
    * @return {String} - the string to be used as the search space for textEnd,
@@ -1303,6 +1550,16 @@ const FragmentFactory = class {
     return this.prefixSearchSpace;
   }
   /**
+   * @returns {Segments | Undefined} - the result of segmenting the prefix
+   *     search space using Intl.Segmenter, or undefined if a segmenter was not
+   *     provided.
+   */
+
+
+  getPrefixSegments() {
+    return this.prefixSegments;
+  }
+  /**
    * @return {String} - the string to be used as the search space for prefix,
    *     backwards.
    */
@@ -1318,6 +1575,16 @@ const FragmentFactory = class {
 
   getSuffixSearchSpace() {
     return this.suffixSearchSpace;
+  }
+  /**
+   * @returns {Segments | Undefined} - the result of segmenting the suffix
+   *     search space using Intl.Segmenter, or undefined if a segmenter was not
+   *     provided.
+   */
+
+
+  getSuffixSegments() {
+    return this.suffixSegments;
   }
   /**
    * Helper method for doing arithmetic in the backwards search space.
@@ -1571,68 +1838,202 @@ const makeWalkerForNode = (node, endNode) => {
 
 
 const expandRangeStartToWordBound = range => {
-  // Simplest case: If we're in a text node, try to find a boundary char in the
-  // same text node.
-  const newOffset = findWordStartBoundInTextNode(range.startContainer, range.startOffset);
+  const segmenter = internal.makeNewSegmenter();
 
-  if (newOffset !== -1) {
-    range.setStart(range.startContainer, newOffset);
-    return;
-  } // Also, skip doing any traversal if we're already at the inside edge of
-  // a block node.
+  if (segmenter) {
+    // Find the starting text node and offset (since the range may start with a
+    // non-text node).
+    const startNode = getFirstNodeForBlockSearch(range);
 
+    if (startNode !== range.startContainer) {
+      range.setStartBefore(startNode);
+    }
 
-  if (isBlock(range.startContainer) && range.startOffset === 0) {
-    return;
-  }
-
-  const walker = makeWalkerForNode(range.startContainer);
-
-  if (!walker) {
-    return;
-  }
-
-  const visited = new Set();
-  const origin = walker.currentNode;
-  let node = backwardTraverse(walker, visited, origin);
-
-  while (node != null) {
-    const newOffset = findWordStartBoundInTextNode(node);
+    expandToNearestWordBoundaryPointUsingSegments(segmenter,
+    /* expandForward= */
+    false, range);
+  } else {
+    // Simplest case: If we're in a text node, try to find a boundary char in
+    // the same text node.
+    const newOffset = findWordStartBoundInTextNode(range.startContainer, range.startOffset);
 
     if (newOffset !== -1) {
-      range.setStart(node, newOffset);
+      range.setStart(range.startContainer, newOffset);
       return;
-    } // If |node| is a block node, then we've hit a block boundary, which counts
-    // as a word boundary.
+    } // Also, skip doing any traversal if we're already at the inside edge of
+    // a block node.
 
 
-    if (isBlock(node)) {
-      if (node.contains(range.startContainer)) {
-        // If the selection starts inside |node|, then the correct range
-        // boundary is the *leading* edge of |node|.
-        range.setStart(node, 0);
+    if (isBlock(range.startContainer) && range.startOffset === 0) {
+      return;
+    }
+
+    const walker = makeWalkerForNode(range.startContainer);
+
+    if (!walker) {
+      return;
+    }
+
+    const visited = new Set();
+    const origin = walker.currentNode;
+    let node = backwardTraverse(walker, visited, origin);
+
+    while (node != null) {
+      const newOffset = findWordStartBoundInTextNode(node);
+
+      if (newOffset !== -1) {
+        range.setStart(node, newOffset);
+        return;
+      } // If |node| is a block node, then we've hit a block boundary, which
+      // counts as a word boundary.
+
+
+      if (isBlock(node)) {
+        if (node.contains(range.startContainer)) {
+          // If the selection starts inside |node|, then the correct range
+          // boundary is the *leading* edge of |node|.
+          range.setStart(node, 0);
+        } else {
+          // Otherwise, |node| is before the selection, so the correct boundary
+          // is the *trailing* edge of |node|.
+          range.setStartAfter(node);
+        }
+
+        return;
+      }
+
+      node = backwardTraverse(walker, visited, origin); // We should never get here; the walker should eventually hit a block node
+      // or the root of the document. Collapse range so the caller can handle
+      // this as an error.
+
+      range.collapse();
+    }
+  }
+};
+/**
+ * Uses Intl.Segmenter to shift the start or end of a range to a word boundary.
+ * Helper method for expandWord*ToWordBound methods.
+ * @param {Intl.Segmenter} segmenter - object to use for word segmenting
+ * @param {boolean} isRangeEnd - true if the range end should be modified, false
+ *     if the range start should be modified
+ * @param {Range} range - the range to modify
+ */
+
+
+const expandToNearestWordBoundaryPointUsingSegments = (segmenter, isRangeEnd, range) => {
+  // Find the index as an offset in the full text of the block in which
+  // boundary occurs.
+  const boundary = isRangeEnd ? {
+    node: range.endContainer,
+    offset: range.endOffset
+  } : {
+    node: range.startContainer,
+    offset: range.startOffset
+  };
+  const nodes = getTextNodesInSameBlock(boundary.node);
+  const preNodeText = nodes.preNodes.reduce((prev, cur) => {
+    return prev.concat(cur.textContent);
+  }, '');
+  const innerNodeText = nodes.innerNodes.reduce((prev, cur) => {
+    return prev.concat(cur.textContent);
+  }, '');
+  let offsetInText = preNodeText.length;
+
+  if (boundary.node.nodeType === Node.TEXT_NODE) {
+    offsetInText += boundary.offset;
+  } else if (isRangeEnd) {
+    offsetInText += innerNodeText.length;
+  } // Find the segment of the full block text containing the range start.
+
+
+  const postNodeText = nodes.postNodes.reduce((prev, cur) => {
+    return prev.concat(cur.textContent);
+  }, '');
+  const allNodes = [...nodes.preNodes, ...nodes.innerNodes, ...nodes.postNodes];
+  const text = preNodeText.concat(innerNodeText, postNodeText);
+  const segments = segmenter.segment(text);
+  const foundSegment = segments.containing(offsetInText);
+
+  if (!foundSegment) {
+    if (isRangeEnd) {
+      range.setEndAfter(allNodes[allNodes.length - 1]);
+    } else {
+      range.setEndBefore(allNodes[0]);
+    }
+
+    return;
+  } // Easy case: if the segment is not word-like (i.e., contains whitespace,
+  // punctuation, etc.) then nothing needs to be done because this
+  // boundary point is between words.
+
+
+  if (!foundSegment.isWordLike) {
+    return;
+  } // Edge case: if we are at the first/last character of the segment, we
+  // need to check if the one before/after it is whitespace.
+
+
+  if (offsetInText === foundSegment.index) {
+    const prevSegment = segments.containing(offsetInText - 1); // |prevSegment| will be undefined if |offsetInText| is 0
+
+    if (prevSegment && !prevSegment.isWordLike) {
+      return;
+    }
+  }
+
+  if (offsetInText === foundSegment.index + foundSegment.segment.length) {
+    const nextSegment = segments.containing(offsetInText + 1); // |nextSegment| will be undefined if |offsetInText| is past the end of
+    // |text|
+
+    if (nextSegment && !nextSegment.isWordLike) {
+      return;
+    }
+  } // We're inside a word. Based on |isRangeEnd|, the target offset will
+  // either be the start or the end of the found segment.
+
+
+  const desiredOffsetInText = isRangeEnd ? foundSegment.index + foundSegment.segment.length : foundSegment.index;
+  let newNodeIndexInText = 0;
+
+  for (const node of allNodes) {
+    if (newNodeIndexInText <= desiredOffsetInText && desiredOffsetInText < newNodeIndexInText + node.textContent.length) {
+      const offsetInNode = desiredOffsetInText - newNodeIndexInText;
+
+      if (isRangeEnd) {
+        if (offsetInNode >= node.textContent.length) {
+          range.setEndAfter(node);
+        } else {
+          range.setEnd(node, offsetInNode);
+        }
       } else {
-        // Otherwise, |node| is before the selection, so the correct boundary is
-        // the *trailing* edge of |node|.
-        range.setStartAfter(node);
+        if (offsetInNode >= node.textContent.length) {
+          range.setStartAfter(node);
+        } else {
+          range.setStart(node, offsetInNode);
+        }
       }
 
       return;
     }
 
-    node = backwardTraverse(walker, visited, origin);
-  } // We should never get here; the walker should eventually hit a block node
-  // or the root of the document. Collapse range so the caller can handle this
-  // as an error.
+    newNodeIndexInText += node.textContent.length;
+  } // If we got here, then somehow the offset didn't fall within a node. As a
+  // fallback, move the range to the start/end of the block.
 
 
-  range.collapse();
+  if (isRangeEnd) {
+    range.setEndAfter(allNodes[allNodes.length - 1]);
+  } else {
+    range.setStartBefore(allNodes[0]);
+  }
 };
 /**
  * @typedef {Object} TextNodeLists - the result of traversing the DOM to
  *     extract TextNodes
  * @property {TextNode[]} preNodes - the nodes appearing before a specified
  *     starting node
+ * @property {TextNode[]} innerNodes - a list containing |node| if it is a
+ *     text node, or any text node children of |node|.
  * @property {TextNode[]} postNodes - the nodes appearing after a specified
  *     starting node
  */
@@ -1660,6 +2061,8 @@ const getTextNodesInSameBlock = node => {
   let backNode = backwardTraverse(backWalker, visited, origin);
 
   while (backNode != null && !isBlock(backNode)) {
+    checkTimeout();
+
     if (backNode.nodeType === Node.TEXT_NODE) {
       preNodes.push(backNode);
     }
@@ -1668,6 +2071,28 @@ const getTextNodesInSameBlock = node => {
   }
 
   preNodes.reverse();
+  const innerNodes = [];
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    innerNodes.push(node);
+  } else {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, node => {
+      return internal.filterFunction(node);
+    });
+    walker.currentNode = node;
+    let child = walker.nextNode();
+
+    while (child != null) {
+      checkTimeout();
+
+      if (child.nodeType === Node.TEXT_NODE) {
+        innerNodes.push(child);
+      }
+
+      child = walker.nextNode();
+    }
+  }
+
   const postNodes = [];
   const forwardWalker = makeWalkerForNode(node);
 
@@ -1679,6 +2104,8 @@ const getTextNodesInSameBlock = node => {
   let forwardNode = forwardTraverse(forwardWalker, overrideMap);
 
   while (forwardNode != null && !isBlock(forwardNode)) {
+    checkTimeout();
+
     if (forwardNode.nodeType === Node.TEXT_NODE) {
       postNodes.push(forwardNode);
     }
@@ -1688,6 +2115,7 @@ const getTextNodesInSameBlock = node => {
 
   return {
     preNodes: preNodes,
+    innerNodes: innerNodes,
     postNodes: postNodes
   };
 };
@@ -1808,58 +2236,74 @@ const backwardTraverse = (walker, visited, origin) => {
 
 
 const expandRangeEndToWordBound = range => {
-  let initialOffset = range.endOffset;
-  let node = range.endContainer;
+  const segmenter = internal.makeNewSegmenter();
 
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    if (range.endOffset < node.childNodes.length) {
-      node = node.childNodes[range.endOffset];
+  if (segmenter) {
+    // Find the ending text node and offset (since the range may end with a
+    // non-text node).
+    const endNode = getLastNodeForBlockSearch(range);
+
+    if (endNode !== range.endContainer) {
+      range.setEndAfter(endNode);
     }
-  }
 
-  const walker = makeWalkerForNode(node);
+    expandToNearestWordBoundaryPointUsingSegments(segmenter,
+    /* expandForward= */
+    true, range);
+  } else {
+    let initialOffset = range.endOffset;
+    let node = range.endContainer;
 
-  if (!walker) {
-    return;
-  }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      if (range.endOffset < node.childNodes.length) {
+        node = node.childNodes[range.endOffset];
+      }
+    }
 
-  const override = createForwardOverrideMap(walker);
+    const walker = makeWalkerForNode(node);
 
-  while (node != null) {
-    checkTimeout();
-    const newOffset = findWordEndBoundInTextNode(node, initialOffset); // Future iterations should not use initialOffset; null it out so it is
-    // discarded.
-
-    initialOffset = null;
-
-    if (newOffset !== -1) {
-      range.setEnd(node, newOffset);
+    if (!walker) {
       return;
-    } // If |node| is a block node, then we've hit a block boundary, which counts
-    // as a word boundary.
+    }
+
+    const override = createForwardOverrideMap(walker);
+
+    while (node != null) {
+      checkTimeout();
+      const newOffset = findWordEndBoundInTextNode(node, initialOffset); // Future iterations should not use initialOffset; null it out so it is
+      // discarded.
+
+      initialOffset = null;
+
+      if (newOffset !== -1) {
+        range.setEnd(node, newOffset);
+        return;
+      } // If |node| is a block node, then we've hit a block boundary, which
+      // counts as a word boundary.
 
 
-    if (isBlock(node)) {
-      if (node.contains(range.endContainer)) {
-        // If the selection starts inside |node|, then the correct range
-        // boundary is the *trailing* edge of |node|.
-        range.setEnd(node, node.childNodes.length);
-      } else {
-        // Otherwise, |node| is after the selection, so the correct boundary is
-        // the *leading* edge of |node|.
-        range.setEndBefore(node);
+      if (isBlock(node)) {
+        if (node.contains(range.endContainer)) {
+          // If the selection starts inside |node|, then the correct range
+          // boundary is the *trailing* edge of |node|.
+          range.setEnd(node, node.childNodes.length);
+        } else {
+          // Otherwise, |node| is after the selection, so the correct boundary
+          // is the *leading* edge of |node|.
+          range.setEndBefore(node);
+        }
+
+        return;
       }
 
-      return;
-    }
-
-    node = forwardTraverse(walker, override);
-  } // We should never get here; the walker should eventually hit a block node
-  // or the root of the document. Collapse range so the caller can handle this
-  // as an error.
+      node = forwardTraverse(walker, override);
+    } // We should never get here; the walker should eventually hit a block node
+    // or the root of the document. Collapse range so the caller can handle this
+    // as an error.
 
 
-  range.collapse();
+    range.collapse();
+  }
 };
 /**
  * Helper to determine if a node is a block element or not.

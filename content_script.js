@@ -114,7 +114,6 @@
         /* global ClipboardItem */
         await navigator.clipboard.write(clipboardData);
       } catch (err) {
-        console.warn(err.name, err.message);
         const textArea = document.createElement('textarea');
         document.body.append(textArea);
         textArea.textContent = url;

@@ -1,6 +1,6 @@
 {
   "name": "link-to-text-fragment",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Browser extension that allows for linking to arbitrary text fragments.",
   "scripts": {
     "fix": "npx prettier --write .",
@@ -24,17 +24,18 @@
   },
   "homepage": "https://github.com/GoogleChromeLabs/link-to-text-fragment#readme",
   "devDependencies": {
-    "@babel/cli": "^7.15.4",
+    "@babel/cli": "^7.15.7",
     "@babel/core": "^7.15.5",
     "@babel/plugin-transform-modules-commonjs": "^7.15.4",
     "@babel/preset-env": "^7.15.6",
     "@babel/runtime-corejs3": "^7.15.4",
-    "core-js": "^3.17.3",
+    "core-js": "^3.18.1",
     "eslint": "^7.32.0",
     "eslint-config-google": "^0.14.0",
-    "rollup": "^2.56.3",
+    "prettier": "^2.4.1",
+    "rollup": "^2.57.0",
     "shx": "^0.3.3",
-    "text-fragments-polyfill": "4.0.0"
+    "text-fragments-polyfill": "5.0.0"
   },
   "eslintConfig": {
     "env": {
