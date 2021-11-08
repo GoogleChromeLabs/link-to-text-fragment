@@ -22,7 +22,7 @@
     }
   };
 
-  const createTextFragment = (sendResponse) => {
+  const createTextFragment = () => {
     const selection = window.getSelection();
     // eslint-disable-next-line no-undef
     const result = exports.generateFragment(selection);
@@ -42,8 +42,10 @@
       url = `${url}#:~:text=${prefix}${textStart}${textEnd}${suffix}`;
       copyToClipboard(url, selection.toString());
       reportSuccess();
+      return url;
     } else {
       reportFailure();
+      return `Could not create URL ${result.status}`;
     }
   };
 
