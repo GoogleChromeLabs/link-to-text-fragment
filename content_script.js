@@ -79,6 +79,8 @@
   };
 
   const copyToClipboard = (url, selectedText) => {
+    // decode url
+    url = decodeURIComponent(url);
     browser.storage.sync.get({linkStyle: 'rich'}, async (items) => {
       const linkStyle = items.linkStyle;
       // Try to use the Async Clipboard API with fallback to the legacy API.
