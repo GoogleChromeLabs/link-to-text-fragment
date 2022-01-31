@@ -1,26 +1,26 @@
 {
-   "extension_name": {
-     "message": "קישור לקטע טקסט"
-   },
-   "extension_short_name": {
-     "message": "קטע טקסט"
-   },
-   "extension_description": {
-     "message": "תוסף דפדפן המאפשר ליצור קישור עם הפנייה לטקסט מסוים בתוך הדף."
-   },
-   "copy_link": {
-     "message": "העתק קישור לטקסט שנבחר"
-   },
-   "link_failure": {
-     "message": "לא הצלחנו ליצור קישור, נא בחר רצף ארוך יותר של מילים."
-   },
-   "link_copy_style": {
-     "message": "סגנון העתקת קישור"
-   },
-   "rich": {
-     "message": "העתק קישור עם הפנייה למיקום בתוך המסמך."
-   },
-   "raw": {
-     "message": "העתק את כתובת האתר בלבד."
-   }
+  "extension_name": {
+    "message": "קישור לקטע טקסט"
+  },
+  "extension_short_name": {
+    "message": "קטע טקסט"
+  },
+  "extension_description": {
+    "message": "תוסף דפדפן המאפשר ליצור קישור עם הפנייה לטקסט מסוים בתוך הדף."
+  },
+  "copy_link": {
+    "message": "העתק קישור לטקסט שנבחר"
+  },
+  "link_failure": {
+    "message": "לא הצלחנו ליצור קישור, נא בחר רצף ארוך יותר של מילים."
+  },
+  "link_copy_style": {
+    "message": "סגנון העתקת קישור"
+  },
+  "rich": {
+    "message": "העתק קישור עם הפנייה למיקום בתוך המסמך."
+  },
+  "raw": {
+    "message": "העתק את כתובת האתר בלבד."
+  }
 }

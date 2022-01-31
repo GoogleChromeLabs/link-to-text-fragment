@@ -100,13 +100,16 @@ const processTextFragmentDirective = textFragment => {
     if (textFragment.textEnd) {
       const textEndRange = document.createRange();
       textEndRange.setStart(potentialMatch.endContainer, potentialMatch.endOffset);
-      textEndRange.setEnd(searchRange.endContainer, searchRange.endOffset); // Search through the rest of the document to find a textEnd match. This
+      textEndRange.setEnd(searchRange.endContainer, searchRange.endOffset);
+      let missingSuffix = false;
+      let missingTextEnd = false; // Search through the rest of the document to find a textEnd match. This
       // may take multiple iterations if a suffix needs to be found.
 
       while (!textEndRange.collapsed && results.length < 2) {
         const textEndMatch = findTextInRange(textFragment.textEnd, textEndRange);
 
         if (textEndMatch == null) {
+          missingTextEnd = true;
           break;
         }
 
@@ -119,6 +122,7 @@ const processTextFragmentDirective = textFragment => {
           const suffixResult = checkSuffix(textFragment.suffix, potentialMatch, searchRange);
 
           if (suffixResult === CheckSuffixResult.NO_SUFFIX_MATCH) {
+            missingSuffix = true;
             break;
           } else if (suffixResult === CheckSuffixResult.SUFFIX_MATCH) {
             results.push(potentialMatch.cloneRange());
@@ -130,6 +134,12 @@ const processTextFragmentDirective = textFragment => {
           // If we've found textEnd and there's no suffix, then it's a match!
           results.push(potentialMatch.cloneRange());
         }
+      } // Stopping match search because suffix or textEnd are missing from the
+      // rest of the search space.
+
+
+      if (missingSuffix || missingTextEnd) {
+        break;
       }
     } else if (textFragment.suffix) {
       // If there's no textEnd but there is a suffix, search for the suffix
@@ -223,8 +233,8 @@ const advanceRangeStartPastOffset = (range, node, offset) => {
 
 
 const advanceRangeStartToNonWhitespace = range => {
-  const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, node => {
-    return filterFunction(node, range);
+  const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, node => {
+    return acceptTextNodeIfVisibleInRange(node, range);
   });
   let node = walker.nextNode();
 
@@ -255,6 +265,37 @@ const advanceRangeStartToNonWhitespace = range => {
   }
 };
 /**
+ * Helper function to calculate the visibility of a Node based on its CSS
+ * computed style. This function does not take into account the visibility of
+ * the node's ancestors so even if the node is visible according to its style
+ * it might not be visible on the page if one of its ancestors is not visible.
+ * @param {Node} node - the Node to evaluate
+ * @return {Boolean} - true if the node is visible. A node will be visible if
+ * its computed style meets all of the following criteria:
+ *  - non zero height, width, height and opacity
+ *  - visibility not hidden
+ *  - display not none
+ */
+
+
+const isNodeVisible = node => {
+  // Find an HTMLElement (this node or an ancestor) so we can check
+  // visibility.
+  let elt = node;
+
+  while (elt != null && !(elt instanceof HTMLElement)) elt = elt.parentNode;
+
+  if (elt != null) {
+    const nodeStyle = window.getComputedStyle(elt); // If the node is not rendered, just skip it.
+
+    if (nodeStyle.visibility === 'hidden' || nodeStyle.display === 'none' || nodeStyle.height === 0 || nodeStyle.width === 0 || nodeStyle.opacity === 0) {
+      return false;
+    }
+  }
+
+  return true;
+};
+/**
  * Filter function for use with TreeWalkers. Rejects nodes that aren't in the
  * given range or aren't visible.
  * @param {Node} node - the Node to evaluate
@@ -265,22 +306,34 @@ const advanceRangeStartToNonWhitespace = range => {
  */
 
 
-const filterFunction = (node, range) => {
-  if (range != null && !range.intersectsNode(node)) return NodeFilter.FILTER_REJECT; // Find an HTMLElement (this node or an ancestor) so we can check visibility.
+const acceptNodeIfVisibleInRange = (node, range) => {
+  if (range != null && !range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+  return isNodeVisible(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+};
+/**
+ * Filter function for use with TreeWalkers. Accepts only visible text nodes
+ * that are in the given range. Other types of nodes visible in the given range
+ * are skipped so a TreeWalker using this filter function still visits text
+ * nodes in the node's subtree.
+ * @param {Node} node - the Node to evaluate
+ * @param {Range} range - the range in which node must fall. Optional;
+ *     if null, the range check is skipped/
+ * @return {NodeFilter} - NodeFilter value to be passed along to a TreeWalker.
+ * Values returned:
+ *  - FILTER_REJECT: Node not in range or not visible.
+ *  - FILTER_SKIP: Non Text Node visible and in range
+ *  - FILTER_ACCEPT: Text Node visible and in range
+ */
 
-  let elt = node;
 
-  while (elt != null && !(elt instanceof HTMLElement)) elt = elt.parentNode;
+const acceptTextNodeIfVisibleInRange = (node, range) => {
+  if (range != null && !range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
 
-  if (elt != null) {
-    const nodeStyle = window.getComputedStyle(elt); // If the node is not rendered, just skip it.
-
-    if (nodeStyle.visibility === 'hidden' || nodeStyle.display === 'none' || nodeStyle.height === 0 || nodeStyle.width === 0 || nodeStyle.opacity === 0) {
-      return NodeFilter.FILTER_REJECT;
-    }
+  if (!isNodeVisible(node)) {
+    return NodeFilter.FILTER_REJECT;
   }
 
-  return NodeFilter.FILTER_ACCEPT;
+  return node.nodeType === Node.TEXT_NODE ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
 };
 /**
  * Extracts all the text nodes within the given range.
@@ -296,7 +349,7 @@ const getAllTextNodes = (root, range) => {
   const blocks = [];
   let tmp = [];
   const nodes = Array.from(getElementsIn(root, node => {
-    return filterFunction(node, range);
+    return acceptNodeIfVisibleInRange(node, range);
   }));
 
   for (const node of nodes) {
@@ -356,10 +409,10 @@ function* getElementsIn(root, filter) {
   const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode: filter
   });
-  let currentNode;
+  const finishedSubtrees = new Set();
 
-  while (currentNode = treeWalker.nextNode()) {
-    yield currentNode;
+  while (forwardTraverse(treeWalker, finishedSubtrees) !== null) {
+    yield treeWalker.currentNode;
   }
 }
 /**
@@ -626,6 +679,90 @@ const makeNewSegmenter = () => {
   return undefined;
 };
 /**
+ * Performs traversal on a TreeWalker, visiting each subtree in document order.
+ * When visiting a subtree not already visited (its root not in finishedSubtrees
+ * ), first the root is emitted then the subtree is traversed, then the root is
+ * emitted again and then the next subtree in document order is visited.
+ *
+ * Subtree's roots are emitted twice to signal the beginning and ending of
+ * element nodes. This is useful for ensuring the ends of block boundaries are
+ * found.
+ * @param {TreeWalker} walker - the TreeWalker to be traversed
+ * @param {Set} finishedSubtrees - set of subtree roots already visited
+ * @return {Node} - next node in the traversal
+ */
+
+
+const forwardTraverse = (walker, finishedSubtrees) => {
+  // If current node's subtree is not already finished
+  // try to go first down the subtree.
+  if (!finishedSubtrees.has(walker.currentNode)) {
+    const firstChild = walker.firstChild();
+
+    if (firstChild !== null) {
+      return firstChild;
+    }
+  } // If no subtree go to next sibling if any.
+
+
+  const nextSibling = walker.nextSibling();
+
+  if (nextSibling !== null) {
+    return nextSibling;
+  } // If no sibling go back to parent and mark it as finished.
+
+
+  const parent = walker.parentNode();
+
+  if (parent !== null) {
+    finishedSubtrees.add(parent);
+  }
+
+  return parent;
+};
+/**
+ * Performs backwards traversal on a TreeWalker, visiting each subtree in
+ * backwards document order. When visiting a subtree not already visited (its
+ * root not in finishedSubtrees ), first the root is emitted then the subtree is
+ * backward traversed, then the root is emitted again and then the previous
+ * subtree in document order is visited.
+ *
+ * Subtree's roots are emitted twice to signal the beginning and ending of
+ * element nodes. This is useful for ensuring  block boundaries are found.
+ * @param {TreeWalker} walker - the TreeWalker to be traversed
+ * @param {Set} finishedSubtrees - set of subtree roots already visited
+ * @return {Node} - next node in the backwards traversal
+ */
+
+
+const backwardTraverse = (walker, finishedSubtrees) => {
+  // If current node's subtree is not already finished
+  // try to go first down the subtree.
+  if (!finishedSubtrees.has(walker.currentNode)) {
+    const lastChild = walker.lastChild();
+
+    if (lastChild !== null) {
+      return lastChild;
+    }
+  } // If no subtree go to previous sibling if any.
+
+
+  const previousSibling = walker.previousSibling();
+
+  if (previousSibling !== null) {
+    return previousSibling;
+  } // If no sibling go back to parent and mark it as finished.
+
+
+  const parent = walker.parentNode();
+
+  if (parent !== null) {
+    finishedSubtrees.add(parent);
+  }
+
+  return parent;
+};
+/**
  * Should only be used by other files in this directory.
  */
 
@@ -634,9 +771,11 @@ const internal = {
   BLOCK_ELEMENTS: BLOCK_ELEMENTS,
   BOUNDARY_CHARS: BOUNDARY_CHARS,
   NON_BOUNDARY_CHARS: NON_BOUNDARY_CHARS,
-  filterFunction: filterFunction,
+  acceptNodeIfVisibleInRange: acceptNodeIfVisibleInRange,
   normalizeString: normalizeString,
-  makeNewSegmenter: makeNewSegmenter
+  makeNewSegmenter: makeNewSegmenter,
+  forwardTraverse: forwardTraverse,
+  backwardTraverse: backwardTraverse
 }; // Allow importing module from closure-compiler projects that haven't migrated
 // to ES6 modules.
 
@@ -880,8 +1019,11 @@ const doGenerateFragment = (selection, startTime) => {
   }
 
   factory.useSegmenter(internal.makeNewSegmenter());
+  let didEmbiggen = false;
 
-  while (factory.embiggen()) {
+  do {
+    checkTimeout();
+    didEmbiggen = factory.embiggen();
     const fragment = factory.tryToMakeUniqueFragment();
 
     if (fragment != null) {
@@ -890,9 +1032,7 @@ const doGenerateFragment = (selection, startTime) => {
         fragment: fragment
       };
     }
-
-    checkTimeout();
-  }
+  } while (didEmbiggen);
 
   return {
     status: GenerateFragmentStatus.AMBIGUOUS
@@ -905,6 +1045,11 @@ const doGenerateFragment = (selection, startTime) => {
 
 
 const checkTimeout = () => {
+  // disable check when no timeout duration specified
+  if (timeoutDurationMs === null) {
+    return;
+  }
+
   const delta = Date.now() - t0;
 
   if (delta > timeoutDurationMs) {
@@ -943,8 +1088,15 @@ const getSearchSpaceForStart = range => {
     return undefined;
   }
 
-  const map = createForwardOverrideMap(walker);
-  const origin = node; // tempRange monitors whether we've exhausted our search space yet.
+  const finishedSubtrees = new Set(); // If the range starts after the last child of an element node
+  // don't visit its subtree because it's not included in the range.
+
+  if (range.startContainer.nodeType === Node.ELEMENT_NODE && range.startOffset === range.startContainer.childNodes.length) {
+    finishedSubtrees.add(range.startContainer);
+  }
+
+  const origin = node;
+  const textAccumulator = new BlockTextAccumulator(range, true); // tempRange monitors whether we've exhausted our search space yet.
 
   const tempRange = range.cloneRange();
 
@@ -956,20 +1108,18 @@ const getSearchSpaceForStart = range => {
       tempRange.setStartAfter(node);
     } else {
       tempRange.setStartBefore(node);
-    } // If |node| is a block node, then we've hit a block boundary.
+    } // Add node to accumulator to keep track of text inside the current block
+    // boundaries
 
 
-    if (isBlock(node)) {
-      const candidate = range.cloneRange();
-      candidate.setEnd(tempRange.startContainer, tempRange.startOffset);
-      const trimmed = candidate.toString().trim();
+    textAccumulator.appendNode(node); // If the accumulator found a non empty block boundary we've got our search
+    // space.
 
-      if (trimmed.length > 0) {
-        return trimmed;
-      }
+    if (textAccumulator.textInBlock !== null) {
+      return textAccumulator.textInBlock;
     }
 
-    node = forwardTraverse(walker, map);
+    node = internal.forwardTraverse(walker, finishedSubtrees);
   }
 
   return undefined;
@@ -994,8 +1144,15 @@ const getSearchSpaceForEnd = range => {
     return undefined;
   }
 
-  const visited = new Set();
-  const origin = node; // tempRange monitors whether we've exhausted our search space yet.
+  const finishedSubtrees = new Set(); // If the range ends before the first child of an element node
+  // don't visit its subtree because it's not included in the range.
+
+  if (range.endContainer.nodeType === Node.ELEMENT_NODE && range.endOffset === 0) {
+    finishedSubtrees.add(range.endContainer);
+  }
+
+  const origin = node;
+  const textAccumulator = new BlockTextAccumulator(range, false); // tempRange monitors whether we've exhausted our search space yet.
 
   const tempRange = range.cloneRange();
 
@@ -1007,20 +1164,18 @@ const getSearchSpaceForEnd = range => {
       tempRange.setEnd(node, 0);
     } else {
       tempRange.setEndAfter(node);
-    } // If |node| is a block node, then we've hit a block boundary.
+    } // Add node to accumulator to keep track of text inside the current block
+    // boundaries.
 
 
-    if (isBlock(node)) {
-      const candidate = range.cloneRange();
-      candidate.setStart(tempRange.endContainer, tempRange.endOffset);
-      const trimmed = candidate.toString().trim();
+    textAccumulator.appendNode(node); // If the accumulator found a non empty block boundary we've got our search
+    // space.
 
-      if (trimmed.length > 0) {
-        return trimmed;
-      }
+    if (textAccumulator.textInBlock !== null) {
+      return textAccumulator.textInBlock;
     }
 
-    node = backwardTraverse(walker, visited, origin);
+    node = internal.backwardTraverse(walker, finishedSubtrees);
   }
 
   return undefined;
@@ -1631,6 +1786,105 @@ const FragmentFactory = class {
 
 };
 /**
+ * Helper class to calculate visible text from the start or end of a range
+ * until a block boundary is reached or the range is exhausted.
+ */
+
+const BlockTextAccumulator = class {
+  /**
+   * @param {Range} searchRange - the range for which the text in the last or
+   *     first non empty block boundary will be calculated
+   * @param {boolean} isForwardTraversal - true if nodes in
+   *     searchRange will be forward traversed
+   */
+  constructor(searchRange, isForwardTraversal) {
+    this.searchRange = searchRange;
+    this.isForwardTraversal = isForwardTraversal;
+    this.textFound = false;
+    this.textNodes = [];
+    this.textInBlock = null;
+  }
+  /**
+   * Adds the next node in the search space range traversal to the accumulator.
+   * The accumulator then will keep track of the text nodes in the range until a
+   * block boundary is found. Once a block boundary is found and the content of
+   * the text nodes in the boundary is non empty, the property textInBlock will
+   * be set with the content of the text nodes, trimmed of leading and trailing
+   * whitespaces.
+   * @param {Node} node - next node in the traversal of the searchRange
+   */
+
+
+  appendNode(node) {
+    // If we already calculated the text in the block boundary just ignore any
+    // calls to append nodes.
+    if (this.textInBlock !== null) {
+      return;
+    } // We found a block boundary, check if there's text inside and set it to
+    // textInBlock or keep going to the next block boundary.
+
+
+    if (isBlock(node)) {
+      if (this.textFound) {
+        // When traversing backwards the nodes are pushed in reverse order.
+        // Reversing them to get them in the right order.
+        if (!this.isForwardTraversal) {
+          this.textNodes.reverse();
+        } // Concatenate all the text nodes in the block boundary and trim any
+        // trailing and leading whitespaces.
+
+
+        this.textInBlock = this.textNodes.map(textNode => textNode.textContent).join('').trim();
+      } else {
+        // Discard the text nodes visited so far since they are empty and we'll
+        // continue searching in the next block boundary.
+        this.textNodes = [];
+      }
+
+      return;
+    } // Ignore non text nodes.
+
+
+    if (!isText(node)) return; // Get the part of node inside the search range. This is to avoid
+    // accumulating text that's not inside the range.
+
+    const nodeToInsert = this.getNodeIntersectionWithRange(node); // Keep track of any text found in the block boundary.
+
+    this.textFound = this.textFound || nodeToInsert.textContent.trim() !== '';
+    this.textNodes.push(nodeToInsert);
+  }
+  /**
+   * Calculates the intersection of a node with searchRange and returns a Text
+   * Node with the intersection
+   * @param {Node} node - the node to intercept with searchRange
+   * @returns {Node} - node if node is fully within searchRange or a Text Node
+   *     with the substring of the content of node inside the search range
+   */
+
+
+  getNodeIntersectionWithRange(node) {
+    let startOffset = null;
+    let endOffset = null;
+
+    if (node === this.searchRange.startContainer && this.searchRange.startOffset !== 0) {
+      startOffset = this.searchRange.startOffset;
+    }
+
+    if (node === this.searchRange.endContainer && this.searchRange.endOffset !== node.textContent.length) {
+      endOffset = this.searchRange.endOffset;
+    }
+
+    if (startOffset !== null || endOffset !== null) {
+      return {
+        textContent: node.textContent.substring(startOffset ?? 0, endOffset ?? node.textContent.length)
+      };
+    }
+
+    return node;
+  }
+
+};
+/**
  * @param {TextFragment} fragment - the candidate fragment
  * @return {boolean} - true iff the candidate fragment identifies exactly one
  *     portion of the document.
@@ -1721,12 +1975,12 @@ const containsBlockBoundary = range => {
     return false;
   }
 
-  const map = createForwardOverrideMap(walker);
+  const finishedSubtrees = new Set();
 
   while (!tempRange.collapsed && node != null) {
     if (isBlock(node)) return true;
     if (node != null) tempRange.setStartAfter(node);
-    node = forwardTraverse(walker, map);
+    node = internal.forwardTraverse(walker, finishedSubtrees);
     checkTimeout();
   }
 
@@ -1824,7 +2078,7 @@ const makeWalkerForNode = (node, endNode) => {
   }
 
   const walker = document.createTreeWalker(blockAncestor, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, node => {
-    return internal.filterFunction(node);
+    return internal.acceptNodeIfVisibleInRange(node);
   });
   walker.currentNode = node;
   return walker;
@@ -1874,9 +2128,8 @@ const expandRangeStartToWordBound = range => {
       return;
     }
 
-    const visited = new Set();
-    const origin = walker.currentNode;
-    let node = backwardTraverse(walker, visited, origin);
+    const finishedSubtrees = new Set();
+    let node = internal.backwardTraverse(walker, finishedSubtrees);
 
     while (node != null) {
       const newOffset = findWordStartBoundInTextNode(node);
@@ -1902,7 +2155,7 @@ const expandRangeStartToWordBound = range => {
         return;
       }
 
-      node = backwardTraverse(walker, visited, origin); // We should never get here; the walker should eventually hit a block node
+      node = internal.backwardTraverse(walker, finishedSubtrees); // We should never get here; the walker should eventually hit a block node
       // or the root of the document. Collapse range so the caller can handle
       // this as an error.
 
@@ -1949,7 +2202,14 @@ const expandToNearestWordBoundaryPointUsingSegments = (segmenter, isRangeEnd, ra
   const postNodeText = nodes.postNodes.reduce((prev, cur) => {
     return prev.concat(cur.textContent);
   }, '');
-  const allNodes = [...nodes.preNodes, ...nodes.innerNodes, ...nodes.postNodes];
+  const allNodes = [...nodes.preNodes, ...nodes.innerNodes, ...nodes.postNodes]; // Edge case: There's no text nodes in the block.
+  // In that case there's nothing to do because there is no word boundary
+  // to find.
+
+  if (allNodes.length == 0) {
+    return;
+  }
+
   const text = preNodeText.concat(innerNodeText, postNodeText);
   const segments = segmenter.segment(text);
   const foundSegment = segments.containing(offsetInText);
@@ -1969,25 +2229,12 @@ const expandToNearestWordBoundaryPointUsingSegments = (segmenter, isRangeEnd, ra
 
   if (!foundSegment.isWordLike) {
     return;
-  } // Edge case: if we are at the first/last character of the segment, we
-  // need to check if the one before/after it is whitespace.
+  } // Another easy case: if we are at the first/last character of the
+  // segment, then we're done.
 
 
-  if (offsetInText === foundSegment.index) {
-    const prevSegment = segments.containing(offsetInText - 1); // |prevSegment| will be undefined if |offsetInText| is 0
-
-    if (prevSegment && !prevSegment.isWordLike) {
-      return;
-    }
-  }
-
-  if (offsetInText === foundSegment.index + foundSegment.segment.length) {
-    const nextSegment = segments.containing(offsetInText + 1); // |nextSegment| will be undefined if |offsetInText| is past the end of
-    // |text|
-
-    if (nextSegment && !nextSegment.isWordLike) {
-      return;
-    }
+  if (offsetInText === foundSegment.index || offsetInText === foundSegment.index + foundSegment.segment.length) {
+    return;
   } // We're inside a word. Based on |isRangeEnd|, the target offset will
   // either be the start or the end of the found segment.
 
@@ -2039,7 +2286,7 @@ const expandToNearestWordBoundaryPointUsingSegments = (segmenter, isRangeEnd, ra
  */
 
 /**
- * Traverses the DOM to extact all TextNodes appearing in the same block level
+ * Traverses the DOM to extract all TextNodes appearing in the same block level
  * as |node| (i.e., those that are descendents of a common ancestor of |node|
  * with no other block elements in between.)
  * @param {TextNode} node
@@ -2056,9 +2303,8 @@ const getTextNodesInSameBlock = node => {
     return;
   }
 
-  const visited = new Set();
-  const origin = backWalker.currentNode;
-  let backNode = backwardTraverse(backWalker, visited, origin);
+  const finishedSubtrees = new Set();
+  let backNode = internal.backwardTraverse(backWalker, finishedSubtrees);
 
   while (backNode != null && !isBlock(backNode)) {
     checkTimeout();
@@ -2067,7 +2313,7 @@ const getTextNodesInSameBlock = node => {
       preNodes.push(backNode);
     }
 
-    backNode = backwardTraverse(backWalker, visited, origin);
+    backNode = internal.backwardTraverse(backWalker, finishedSubtrees);
   }
 
   preNodes.reverse();
@@ -2077,7 +2323,7 @@ const getTextNodesInSameBlock = node => {
     innerNodes.push(node);
   } else {
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, node => {
-      return internal.filterFunction(node);
+      return internal.acceptNodeIfVisibleInRange(node);
     });
     walker.currentNode = node;
     let child = walker.nextNode();
@@ -2098,10 +2344,12 @@ const getTextNodesInSameBlock = node => {
 
   if (!forwardWalker) {
     return;
-  }
+  } // Forward traverse from node after having finished its subtree
+  // to get text nodes after it until we find a block boundary.
 
-  const overrideMap = createForwardOverrideMap(forwardWalker);
-  let forwardNode = forwardTraverse(forwardWalker, overrideMap);
+
+  const finishedSubtreesForward = new Set([node]);
+  let forwardNode = internal.forwardTraverse(forwardWalker, finishedSubtreesForward);
 
   while (forwardNode != null && !isBlock(forwardNode)) {
     checkTimeout();
@@ -2110,7 +2358,7 @@ const getTextNodesInSameBlock = node => {
       postNodes.push(forwardNode);
     }
 
-    forwardNode = forwardTraverse(forwardWalker, overrideMap);
+    forwardNode = internal.forwardTraverse(forwardWalker, finishedSubtreesForward);
   }
 
   return {
@@ -2118,114 +2366,6 @@ const getTextNodesInSameBlock = node => {
     innerNodes: innerNodes,
     postNodes: postNodes
   };
-};
-/**
- * Helper method to create an override map which will "inject" the ancestors of
- * the walker's starting node into traversal order, when using forwardTraverse.
- * By traversing these ancestor nodes after their children (postorder), we can
- * ensure that, if the walker's origin node is inside of a block element, the
- * end of that element is properly treated as a boundary.
- * @param {TreeWalker} walker - the TreeWalker that will be traversed
- * @return {Map<Node, Node>} - the Map to be passed to forwardTraverse
- */
-
-
-const createForwardOverrideMap = walker => {
-  // Store the current state so it can be restored at the end.
-  const walkerOrigin = walker.currentNode;
-  const ancestors = new Set();
-  const overrideMap = new Map();
-
-  do {
-    // Hold on to the current node so we can reset the walker later.
-    const node = walker.currentNode;
-    ancestors.add(node); // The override map needs to point from the last (grand*)child of |node|
-    // back to |node|, so that we traverse |node| only after all of its
-    // children. If we hit another ancestor of the origin, use that instead
-    // (since it's already part of a postorder chain in our map).
-
-    while (walker.lastChild() != null) {
-      if (ancestors.has(walker.currentNode)) {
-        break;
-      }
-    } // Remember the current override, if any, for the found child.
-
-
-    const previousOverride = overrideMap.get(walker.currentNode); // Set a mapping from the found child to its ancestor.
-
-    if (walker.currentNode !== node) overrideMap.set(walker.currentNode, node); // Also set a mapping from the ancestor to the child's next node, which is
-    // |TreeWalker.nextNode()| unless it had already been overridden in the map.
-    // This override might change in a later iteration if another ancestor needs
-    // to get inserted in the ordering too.
-
-    overrideMap.set(node, previousOverride || walker.nextNode()); // Reset the walker to where it was before we traversed downwards.
-
-    walker.currentNode = node;
-  } while (walker.parentNode() != null);
-
-  walker.currentNode = walkerOrigin;
-  return overrideMap;
-};
-/**
- * Performs traversal on a TreeWalker, using document order except when a node
- * has an entry in |overrideMap|, in which case navigation skips to the
- * indicated destination. This is useful for ensuring the ends of block
- * boundaries are found.
- * @param {TreeWalker} walker - the TreeWalker to be traversed
- * @param {Map<Node, Node>} overrideMap - maps nodes to the nodes which should
- *     follow them during traversal, if this differs from document order
- * @return {Node} - |walker|'s new current node, or null if the current node
- *     was unchanged (and thus, no further traversal is possible)
- */
-
-
-const forwardTraverse = (walker, overrideMap) => {
-  if (overrideMap.has(walker.currentNode)) {
-    const override = overrideMap.get(walker.currentNode);
-    if (override != null) walker.currentNode = override;
-    return override;
-  }
-
-  return walker.nextNode();
-};
-/**
- * Performs backwards traversal on a TreeWalker, such that parent nodes are
- * encountered *before* their children (except when they are ancestors of the
- * starting node |origin|). This is useful for finding block boundaries.
- * @param {TreeWalker} walker - the TreeWalker to be traversed
- * @param {Set<Node>} visited - a set used to avoid repeat iterations. Should be
- *     empty the first time this method is called.
- * @param {Node} origin - the node where traversal started
- * @return {Node} - |walker|'s new current node, or null if
- *     the current node was unchanged (and thus, no further traversal is
- *     possible).
- */
-
-
-const backwardTraverse = (walker, visited, origin) => {
-  // Infinite loop to avoid recursion. Will terminate since visited set
-  // guarantees children of a node are only traversed once, and parent node
-  // will be null once the root of the walker is reached.
-  while (true) {
-    checkTimeout(); // The first time we visit a node, we traverse its children backwards,
-    // unless it's an ancestor of the starting node.
-
-    if (!visited.has(walker.currentNode) && !walker.currentNode.contains(origin)) {
-      visited.add(walker.currentNode);
-
-      if (walker.lastChild() != null) {
-        return walker.currentNode;
-      }
-    }
-
-    if (walker.previousSibling() != null) {
-      return walker.currentNode;
-    } else if (walker.parentNode() == null) {
-      return null;
-    } else if (!visited.has(walker.currentNode)) {
-      return walker.currentNode;
-    }
-  }
 };
 /**
  * Modifies the end of the range, if necessary, to ensure the selection text
@@ -2264,9 +2404,11 @@ const expandRangeEndToWordBound = range => {
 
     if (!walker) {
       return;
-    }
+    } // We'll traverse the dom after node's subtree to try to find
+    // either a word or block boundary.
 
-    const override = createForwardOverrideMap(walker);
+
+    const finishedSubtrees = new Set([node]);
 
     while (node != null) {
       checkTimeout();
@@ -2296,7 +2438,7 @@ const expandRangeEndToWordBound = range => {
         return;
       }
 
-      node = forwardTraverse(walker, override);
+      node = internal.forwardTraverse(walker, finishedSubtrees);
     } // We should never get here; the walker should eventually hit a block node
     // or the root of the document. Collapse range so the caller can handle this
     // as an error.
@@ -2308,29 +2450,37 @@ const expandRangeEndToWordBound = range => {
 /**
  * Helper to determine if a node is a block element or not.
  * @param {Node} node - the node to evaluate
- * @return {Boolean} true iff the node is an element classified as block-level
+ * @return {Boolean} - true if the node is an element classified as block-level
  */
 
 
 const isBlock = node => {
   return node.nodeType === Node.ELEMENT_NODE && (internal.BLOCK_ELEMENTS.includes(node.tagName) || node.tagName === 'HTML' || node.tagName === 'BODY');
 };
+/**
+ * Helper to determine if a node is a Text Node or not
+ * @param {Node} node - the node to evaluate
+ * @returns {Boolean} - true if the node is a Text Node
+ */
+
+
+const isText = node => {
+  return node.nodeType === Node.TEXT_NODE;
+};
 
 const forTesting = {
-  backwardTraverse: backwardTraverse,
   containsBlockBoundary: containsBlockBoundary,
-  createForwardOverrideMap: createForwardOverrideMap,
   doGenerateFragment: doGenerateFragment,
   expandRangeEndToWordBound: expandRangeEndToWordBound,
   expandRangeStartToWordBound: expandRangeStartToWordBound,
   findWordEndBoundInTextNode: findWordEndBoundInTextNode,
   findWordStartBoundInTextNode: findWordStartBoundInTextNode,
-  forwardTraverse: forwardTraverse,
   FragmentFactory: FragmentFactory,
   getSearchSpaceForEnd: getSearchSpaceForEnd,
   getSearchSpaceForStart: getSearchSpaceForStart,
   getTextNodesInSameBlock: getTextNodesInSameBlock,
-  recordStartTime: recordStartTime
+  recordStartTime: recordStartTime,
+  BlockTextAccumulator: BlockTextAccumulator
 }; // Allow importing module from closure-compiler projects that haven't migrated
 // to ES6 modules.
 
