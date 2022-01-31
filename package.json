@@ -35,7 +35,7 @@
     "prettier": "^2.5.1",
     "rollup": "^2.66.1",
     "shx": "^0.3.4",
-    "text-fragments-polyfill": "5.2.0"
+    "text-fragments-polyfill": "5.2.1"
   },
   "eslintConfig": {
     "env": {
