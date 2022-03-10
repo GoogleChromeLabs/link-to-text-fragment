@@ -40,7 +40,7 @@
         `,${encodeURIComponent(fragment.textEnd)}` :
         '';
       url = `${url}#:~:text=${prefix}${textStart}${textEnd}${suffix}`;
-      copyToClipboard(url, selection.toString());
+      copyToClipboard(url, selection);
       reportSuccess();
       return url;
     } else {
@@ -78,7 +78,7 @@
     return true;
   };
 
-  const copyToClipboard = (url, selectedText) => {
+  const copyToClipboard = (url, selection) => {
     browser.storage.sync.get({linkStyle: 'rich'}, async (items) => {
       const linkStyle = items.linkStyle;
       // Try to use the Async Clipboard API with fallback to the legacy API.
@@ -94,7 +94,7 @@
         };
         if (linkStyle === 'rich') {
           clipboardItems['text/html'] = new Blob(
-              [`<a href="${url}">${selectedText}</a>`],
+              [`<a href="${url}">${selection.toString()}</a>`],
               {
                 type: 'text/html',
               },
@@ -104,7 +104,7 @@
           clipboardItems['text/rtf'] = new Blob(
             [
               `{\field{\*\fldinst HYPERLINK "${url}"}{\fldrslt ${
-                  selectedText}}}`,
+                  selection.toString()}}}`,
             ],
             {
               type: 'text/rtf',
@@ -112,6 +112,21 @@
           );
           */
         }
+        else if (linkStyle === 'html') {
+          var html = "";
+          if (selection.rangeCount) {
+              var container = document.createElement("div");
+              for (var i = 0, len = selection.rangeCount; i < len; ++i) {
+                  container.appendChild(selection.getRangeAt(i).cloneContents());
+              }
+              html = container.innerHTML;
+          }
+          clipboardItems['text/html'] = new Blob(
+              [`${html} [🔗](${url})`],
+              {type: 'text/html'},
+          );
+        }
+
         const clipboardData = [new ClipboardItem(clipboardItems)];
         /* global ClipboardItem */
         await navigator.clipboard.write(clipboardData);

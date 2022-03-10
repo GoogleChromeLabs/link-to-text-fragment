@@ -22,5 +22,8 @@
   },
   "raw": {
     "message": "Copy the raw URL."
+  },
+  "html": {
+    "message": "Copy HTML plus a link."
   }
 }
