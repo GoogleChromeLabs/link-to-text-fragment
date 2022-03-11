@@ -1,7 +1,7 @@
 {
   "name": "__MSG_extension_name__",
   "short_name": "__MSG_extension_short_name__",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "__MSG_extension_description__",
   "background": {
     "scripts": [
@@ -17,6 +17,7 @@
   },
   "permissions": ["activeTab", "contextMenus", "clipboardWrite", "storage"],
   "optional_permissions": ["http://*/*", "https://*/*"],
+  "browser_action": {},
   "manifest_version": 2,
   "icons": {
     "16": "assets/16x16.png",

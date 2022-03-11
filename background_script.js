@@ -166,5 +166,18 @@
       );
     });
   };
+
+  chrome.browserAction.onClicked.addListener(async (info, tab) => {
+    console.log("Clicked");
+    if (!SUPPORTS_TEXT_FRAGMENTS) {
+      await polyfillTextFragments();
+    }
+    await injectContentScripts([
+      'prepare.js',
+      'fragment-generation-utils.js',
+      'content_script.js',
+    ]);
+    startProcessing(tab);
+  });
   // eslint-disable-next-line no-undef
 })(chrome || browser);
