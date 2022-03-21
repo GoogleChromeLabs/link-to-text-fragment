@@ -118,17 +118,7 @@
     }
   });
 
-  browser.contextMenus.onClicked.addListener(async (info, tab) => {
-    if (!SUPPORTS_TEXT_FRAGMENTS) {
-      await polyfillTextFragments();
-    }
-    await injectContentScripts([
-      'prepare.js',
-      'fragment-generation-utils.js',
-      'content_script.js',
-    ]);
-    startProcessing(tab);
-  });
+  browser.contextMenus.onClicked.addListener((info, tab) => onCopy(info, tab));
 
   const startProcessing = async (tab) => {
     try {
@@ -167,8 +157,8 @@
     });
   };
 
-  chrome.browserAction.onClicked.addListener(async (info, tab) => {
-    console.log("Clicked");
+  const onCopy = async (info, tab) => {
+    console.log("on Copy: clicked");
     if (!SUPPORTS_TEXT_FRAGMENTS) {
       await polyfillTextFragments();
     }
@@ -178,6 +168,8 @@
       'content_script.js',
     ]);
     startProcessing(tab);
-  });
+  };
+
+  chrome.browserAction.onClicked.addListener((info, tab) => onCopy(info, tab));
   // eslint-disable-next-line no-undef
 })(chrome || browser);
