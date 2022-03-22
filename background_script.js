@@ -158,7 +158,6 @@
   };
 
   const onCopy = async (info, tab) => {
-    console.log("on Copy: clicked");
     if (!SUPPORTS_TEXT_FRAGMENTS) {
       await polyfillTextFragments();
     }
