@@ -115,7 +115,7 @@
         else if (linkStyle === 'rich_plus_raw') {
           let html = '';
           if (selection.rangeCount) {
-              var container = document.createElement("div");
+              const container = document.createElement('div');
               for (var i = 0, len = selection.rangeCount; i < len; ++i) {
                   container.appendChild(selection.getRangeAt(i).cloneContents());
               }
