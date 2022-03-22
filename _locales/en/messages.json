@@ -23,7 +23,7 @@
   "raw": {
     "message": "Copy the raw URL."
   },
-  "html": {
-    "message": "Copy HTML plus a link."
+  "rich_plus_raw": {
+    "message": "Copy as rich text plus the raw URL."
   }
 }

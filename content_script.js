@@ -112,7 +112,7 @@
           );
           */
         }
-        else if (linkStyle === 'html') {
+        else if (linkStyle === 'rich_plus_raw') {
           var html = "";
           if (selection.rangeCount) {
               var container = document.createElement("div");
