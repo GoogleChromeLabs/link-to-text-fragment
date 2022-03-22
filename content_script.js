@@ -113,7 +113,7 @@
           */
         }
         else if (linkStyle === 'rich_plus_raw') {
-          var html = "";
+          let html = '';
           if (selection.rangeCount) {
               var container = document.createElement("div");
               for (var i = 0, len = selection.rangeCount; i < len; ++i) {
