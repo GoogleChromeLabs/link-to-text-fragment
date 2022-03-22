@@ -94,7 +94,7 @@
         };
         if (linkStyle === 'rich') {
           clipboardItems['text/html'] = new Blob(
-              [`<a href="${url}">${selection.toString()}</a>`],
+              [`<a href="${encodeURI(url)}">${selection.toString()}</a>`],
               {
                 type: 'text/html',
               },
@@ -122,7 +122,7 @@
               html = container.innerHTML;
           }
           clipboardItems['text/html'] = new Blob(
-              [`${html} [🔗](${url})`],
+              [`${html} <a href="${encodeURI(url)}">🔗</a>`],
               {type: 'text/html'},
           );
         }
