@@ -25,5 +25,20 @@
   },
   "rich_plus_raw": {
     "message": "Copy as rich text plus the raw URL."
+  },
+  "link_text": {
+    "message": "For the 'rich plus raw' style, select or set the word for the link:"
+  },
+  "link_text_option_1": {
+    "message": "[Source]"
+  },
+  "link_text_option_2": {
+    "message": "[Link]"
+  },
+  "link_text_option_3": {
+    "message": "🔗"
+  },
+  "link_text_option_4": {
+    "message": "Custom:"
   }
 }

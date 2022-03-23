@@ -79,7 +79,9 @@
   };
 
   const copyToClipboard = (url, selection) => {
-    browser.storage.sync.get({linkStyle: 'rich'}, async (items) => {
+    browser.storage.sync.get(
+        {linkStyle: 'rich', linkText: browser.i18n.getMessage('link_text_option_1')},
+        async (items) => {
       const linkStyle = items.linkStyle;
       // Try to use the Async Clipboard API with fallback to the legacy API.
       try {
@@ -122,7 +124,7 @@
               html = container.innerHTML;
           }
           clipboardItems['text/html'] = new Blob(
-              [`${html} <a href="${encodeURI(url)}">🔗</a>`],
+              [`${html} <a href="${encodeURI(url)}">${items.linkText}</a>`],
               {type: 'text/html'},
           );
         }
