@@ -33,19 +33,19 @@
       return await sendMessageToPage('ping');
     } catch (err) {
       await Promise.all(
-          contentScriptNames.map((contentScriptName) => {
-            return new Promise((resolve) => {
-              browser.tabs.executeScript(
-                  {
-                    file: contentScriptName,
-                  },
-                  () => {
-                    log('Injected content script', contentScriptName);
-                    return resolve();
-                  },
-              );
-            });
-          }),
+        contentScriptNames.map((contentScriptName) => {
+          return new Promise((resolve) => {
+            browser.tabs.executeScript(
+              {
+                file: contentScriptName,
+              },
+              () => {
+                log('Injected content script', contentScriptName);
+                return resolve();
+              }
+            );
+          });
+        })
       );
     }
   };
@@ -53,15 +53,15 @@
   const askForAllOriginsPermission = async () => {
     return new Promise((resolve, reject) => {
       browser.permissions.request(
-          {
-            origins: ['http://*/*', 'https://*/*'],
-          },
-          (granted) => {
-            if (granted) {
-              return resolve();
-            }
-            return reject(new Error('Host permission not granted.'));
-          },
+        {
+          origins: ['http://*/*', 'https://*/*'],
+        },
+        (granted) => {
+          if (granted) {
+            return resolve();
+          }
+          return reject(new Error('Host permission not granted.'));
+        }
       );
     });
   };
@@ -81,19 +81,19 @@
   };
 
   browser.contextMenus.create(
-      {
-        title: browser.i18n.getMessage('copy_link'),
-        id: 'copy-link',
-        contexts: ['selection'],
-      },
-      () => {
-        if (browser.runtime.lastError) {
-          console.log(
-              'Error creating context menu item:',
-              browser.runtime.lastError,
-          );
-        }
-      },
+    {
+      title: browser.i18n.getMessage('copy_link'),
+      id: 'copy-link',
+      contexts: ['selection'],
+    },
+    () => {
+      if (browser.runtime.lastError) {
+        console.log(
+          'Error creating context menu item:',
+          browser.runtime.lastError
+        );
+      }
+    }
   );
 
   browser.commands.onCommand.addListener(async (command) => {
@@ -107,28 +107,18 @@
         'content_script.js',
       ]);
       browser.tabs.query(
-          {
-            active: true,
-            currentWindow: true,
-          },
-          (tabs) => {
-            startProcessing(tabs[0]);
-          },
+        {
+          active: true,
+          currentWindow: true,
+        },
+        (tabs) => {
+          startProcessing(tabs[0]);
+        }
       );
     }
   });
 
-  browser.contextMenus.onClicked.addListener(async (info, tab) => {
-    if (!SUPPORTS_TEXT_FRAGMENTS) {
-      await polyfillTextFragments();
-    }
-    await injectContentScripts([
-      'prepare.js',
-      'fragment-generation-utils.js',
-      'content_script.js',
-    ]);
-    startProcessing(tab);
-  });
+  browser.contextMenus.onClicked.addListener((info, tab) => onCopy(info, tab));
 
   const startProcessing = async (tab) => {
     try {
@@ -142,29 +132,43 @@
   const sendMessageToPage = (message, data = null) => {
     return new Promise((resolve, reject) => {
       browser.tabs.query(
-          {
-            active: true,
-            currentWindow: true,
-          },
-          (tabs) => {
-            browser.tabs.sendMessage(
-                tabs[0].id,
-                {
-                  message,
-                  data,
-                },
-                (response) => {
-                  if (!response) {
-                    return reject(
-                        new Error('Failed to connect to the specified tab.'),
-                    );
-                  }
-                  return resolve(response);
-                },
-            );
-          },
+        {
+          active: true,
+          currentWindow: true,
+        },
+        (tabs) => {
+          browser.tabs.sendMessage(
+            tabs[0].id,
+            {
+              message,
+              data,
+            },
+            (response) => {
+              if (!response) {
+                return reject(
+                  new Error('Failed to connect to the specified tab.')
+                );
+              }
+              return resolve(response);
+            }
+          );
+        }
       );
     });
   };
+
+  const onCopy = async (info, tab) => {
+    if (!SUPPORTS_TEXT_FRAGMENTS) {
+      await polyfillTextFragments();
+    }
+    await injectContentScripts([
+      'prepare.js',
+      'fragment-generation-utils.js',
+      'content_script.js',
+    ]);
+    startProcessing(tab);
+  };
+
+  chrome.browserAction.onClicked.addListener((info, tab) => onCopy(info, tab));
   // eslint-disable-next-line no-undef
 })(chrome || browser);
