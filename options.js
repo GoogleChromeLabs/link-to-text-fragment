@@ -34,46 +34,46 @@
 
   // Restore previous settings.
   browser.storage.sync.get(
-    {
-      linkStyle: 'rich',
-      linkText: document.querySelector('.link-text-option-1').textContent,
-    },
-    (items) => {
-      rich.checked = items.linkStyle === 'rich';
-      raw.checked = items.linkStyle === 'raw';
-      richPlusRaw.checked = items.linkStyle === 'rich_plus_raw';
-      linkTextOption1.checked =
+      {
+        linkStyle: 'rich',
+        linkText: document.querySelector('.link-text-option-1').textContent,
+      },
+      (items) => {
+        rich.checked = items.linkStyle === 'rich';
+        raw.checked = items.linkStyle === 'raw';
+        richPlusRaw.checked = items.linkStyle === 'rich_plus_raw';
+        linkTextOption1.checked =
         items.linkText ===
         document.querySelector('.link-text-option-1').textContent;
-      linkTextOption2.checked =
+        linkTextOption2.checked =
         items.linkText ===
         document.querySelector('.link-text-option-2').textContent;
-      linkTextOption3.checked =
+        linkTextOption3.checked =
         items.linkText ===
         document.querySelector('.link-text-option-3').textContent;
-      if (
-        !linkTextOption1.checked &&
+        if (
+          !linkTextOption1.checked &&
         !linkTextOption2.checked &&
         !linkTextOption3.checked
-      ) {
-        linkTextOption4.checked = true;
-        linkTextInput.value = items.linkText;
-      }
-      enableLinkTextOptions(richPlusRaw.checked);
-    }
+        ) {
+          linkTextOption4.checked = true;
+          linkTextInput.value = items.linkText;
+        }
+        enableLinkTextOptions(richPlusRaw.checked);
+      },
   );
 
   // Save settings on change.
   rich.addEventListener('click', () => {
-    browser.storage.sync.set({ linkStyle: 'rich' });
+    browser.storage.sync.set({linkStyle: 'rich'});
     enableLinkTextOptions(richPlusRaw.checked);
   });
   raw.addEventListener('click', () => {
-    browser.storage.sync.set({ linkStyle: 'raw' });
+    browser.storage.sync.set({linkStyle: 'raw'});
     enableLinkTextOptions(richPlusRaw.checked);
   });
   richPlusRaw.addEventListener('click', () => {
-    browser.storage.sync.set({ linkStyle: 'rich_plus_raw' });
+    browser.storage.sync.set({linkStyle: 'rich_plus_raw'});
     enableLinkTextOptions(richPlusRaw.checked);
   });
 
