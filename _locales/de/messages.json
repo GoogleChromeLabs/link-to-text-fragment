@@ -22,5 +22,23 @@
   },
   "raw": {
     "message": "Kopiere rohe URLs."
+  },
+  "rich_plus_raw": {
+    "message": "Kopiere als Rich Text Link plus rohe URL."
+  },
+  "link_text": {
+    "message": "Für den 'Rich Text Link plus rohe URL' Stil, wähle oder setze das Wort für den Link-Text:"
+  },
+  "link_text_option_1": {
+    "message": "[Quelle]"
+  },
+  "link_text_option_2": {
+    "message": "[Link]"
+  },
+  "link_text_option_3": {
+    "message": "🔗"
+  },
+  "link_text_option_4": {
+    "message": "Anpassen:"
   }
 }
