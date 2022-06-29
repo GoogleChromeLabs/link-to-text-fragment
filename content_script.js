@@ -70,6 +70,7 @@
   const reportFailure = (status) => {
     const statusCodes = {
       1: 'INVALID_SELECTION: The selection provided could not be used.',
+      // eslint-disable-next-line max-len
       2: 'AMBIGUOUS: No unique fragment could be identified for this selection.',
       3: 'TIMEOUT: Computation could not complete in time.',
       4: 'EXECUTION_FAILED: Unknown error.',
@@ -79,7 +80,9 @@
       alert(
           `🛑 ${browser.i18n.getMessage(
               'extension_name',
-          )}:\n${browser.i18n.getMessage('link_failure')}\n\n(${statusCodes[status]})`,
+          )}:\n${browser.i18n.getMessage('link_failure')}\n\n(${
+            statusCodes[status]
+          })`,
       );
     });
     return true;
