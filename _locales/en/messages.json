@@ -3,7 +3,7 @@
     "message": "Link to Text Fragment"
   },
   "extension_short_name": {
-    "message": "Text Fragment"
+    "message": "TextFragment"
   },
   "extension_description": {
     "message": "Browser extension that allows for linking to arbitrary text on a page."

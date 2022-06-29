@@ -3,7 +3,7 @@
     "message": "Lien vers un fragment de texte"
   },
   "extension_short_name": {
-    "message": "Fragment de texte"
+    "message": "Fragment"
   },
   "extension_description": {
     "message": "Extension de navigateur qui permet de créer des liens vers du texte arbitraire sur une page."
