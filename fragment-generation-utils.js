@@ -35,6 +35,8 @@ const NON_BOUNDARY_CHARS = /[^\t-\r -#%-\*,-\/:;\?@\[-\]_\{\}\x85\xA0\xA1\xA7\xA
  * Searches the document for a given text fragment.
  *
  * @param {TextFragment} textFragment - Text Fragment to highlight.
+ * @param {Document} documentToProcess - document where to extract and mark
+ *     fragments in.
  * @return {Ranges[]} - Zero or more ranges within the document corresponding
  *     to the fragment. If the fragment corresponds to more than one location
  *     in the document (i.e., is ambiguous) then the first two matches will be
@@ -42,10 +44,10 @@ const NON_BOUNDARY_CHARS = /[^\t-\r -#%-\*,-\/:;\?@\[-\]_\{\}\x85\xA0\xA1\xA7\xA
  *     document).
  */
 
-const processTextFragmentDirective = textFragment => {
+const processTextFragmentDirective = (textFragment, documentToProcess = document) => {
   const results = [];
-  const searchRange = document.createRange();
-  searchRange.selectNodeContents(document.body);
+  const searchRange = documentToProcess.createRange();
+  searchRange.selectNodeContents(documentToProcess.body);
 
   while (!searchRange.collapsed && results.length < 2) {
     let potentialMatch;
@@ -55,15 +57,15 @@ const processTextFragmentDirective = textFragment => {
 
       if (prefixMatch == null) {
         break;
-      } // Future iterations, if necessary, should start after the first character
-      // of the prefix match.
+      } // Future iterations, if necessary, should start after the first
+      // character of the prefix match.
 
 
       advanceRangeStartPastOffset(searchRange, prefixMatch.startContainer, prefixMatch.startOffset); // The search space for textStart is everything after the prefix and
-      // before the end of the top-level search range, starting at the next non-
-      // whitespace position.
+      // before the end of the top-level search range, starting at the next
+      // non- whitespace position.
 
-      const matchRange = document.createRange();
+      const matchRange = documentToProcess.createRange();
       matchRange.setStart(prefixMatch.endContainer, prefixMatch.endOffset);
       matchRange.setEnd(searchRange.endContainer, searchRange.endOffset);
       advanceRangeStartToNonWhitespace(matchRange);
@@ -72,8 +74,8 @@ const processTextFragmentDirective = textFragment => {
         break;
       }
 
-      potentialMatch = findTextInRange(textFragment.textStart, matchRange); // If textStart wasn't found anywhere in the matchRange, then there's no
-      // possible match and we can stop early.
+      potentialMatch = findTextInRange(textFragment.textStart, matchRange); // If textStart wasn't found anywhere in the matchRange, then there's
+      // no possible match and we can stop early.
 
       if (potentialMatch == null) {
         break;
@@ -98,15 +100,16 @@ const processTextFragmentDirective = textFragment => {
     }
 
     if (textFragment.textEnd) {
-      const textEndRange = document.createRange();
+      const textEndRange = documentToProcess.createRange();
       textEndRange.setStart(potentialMatch.endContainer, potentialMatch.endOffset);
       textEndRange.setEnd(searchRange.endContainer, searchRange.endOffset); // Keep track of matches of the end term followed by suffix term
       // (if needed).
-      // If no matches are found then there's no point in keeping looking for
-      // matches of the start term after the current start term occurrence.
+      // If no matches are found then there's no point in keeping looking
+      // for matches of the start term after the current start term
+      // occurrence.
 
-      let matchFound = false; // Search through the rest of the document to find a textEnd match. This
-      // may take multiple iterations if a suffix needs to be found.
+      let matchFound = false; // Search through the rest of the document to find a textEnd match.
+      // This may take multiple iterations if a suffix needs to be found.
 
       while (!textEndRange.collapsed && results.length < 2) {
         const textEndMatch = findTextInRange(textFragment.textEnd, textEndRange);
@@ -119,9 +122,9 @@ const processTextFragmentDirective = textFragment => {
         potentialMatch.setEnd(textEndMatch.endContainer, textEndMatch.endOffset);
 
         if (textFragment.suffix) {
-          // If there's supposed to be a suffix, check if it appears after the
-          // textEnd we just found.
-          const suffixResult = checkSuffix(textFragment.suffix, potentialMatch, searchRange);
+          // If there's supposed to be a suffix, check if it appears after
+          // the textEnd we just found.
+          const suffixResult = checkSuffix(textFragment.suffix, potentialMatch, searchRange, documentToProcess);
 
           if (suffixResult === CheckSuffixResult.NO_SUFFIX_MATCH) {
             break;
@@ -133,12 +136,13 @@ const processTextFragmentDirective = textFragment => {
             continue;
           }
         } else {
-          // If we've found textEnd and there's no suffix, then it's a match!
+          // If we've found textEnd and there's no suffix, then it's a
+          // match!
           matchFound = true;
           results.push(potentialMatch.cloneRange());
         }
-      } // Stopping match search because suffix or textEnd are missing from the
-      // rest of the search space.
+      } // Stopping match search because suffix or textEnd are missing from
+      // the rest of the search space.
 
 
       if (!matchFound) {
@@ -147,7 +151,7 @@ const processTextFragmentDirective = textFragment => {
     } else if (textFragment.suffix) {
       // If there's no textEnd but there is a suffix, search for the suffix
       // after potentialMatch
-      const suffixResult = checkSuffix(textFragment.suffix, potentialMatch, searchRange);
+      const suffixResult = checkSuffix(textFragment.suffix, potentialMatch, searchRange, documentToProcess);
 
       if (suffixResult === CheckSuffixResult.NO_SUFFIX_MATCH) {
         break;
@@ -186,13 +190,15 @@ const CheckSuffixResult = {
  * @param {Range} searchRange - the Range in which to search for |suffix|.
  *     Regardless of the start boundary of this Range, nothing appearing before
  *     |potentialMatch| will be considered.
+ * @param {Document} documentToProcess - document where to extract and mark
+ *     fragments in.
  * @return {CheckSuffixResult} - enum value indicating that potentialMatch
  *     should be accepted, that the search should continue, or that the search
  *     should halt.
  */
 
-const checkSuffix = (suffix, potentialMatch, searchRange) => {
-  const suffixRange = document.createRange();
+const checkSuffix = (suffix, potentialMatch, searchRange, documentToProcess) => {
+  const suffixRange = documentToProcess.createRange();
   suffixRange.setStart(potentialMatch.endContainer, potentialMatch.endOffset);
   suffixRange.setEnd(searchRange.endContainer, searchRange.endOffset);
   advanceRangeStartToNonWhitespace(suffixRange);
@@ -485,7 +491,7 @@ const findRangeFromNodeList = (query, range, textNodes, segmenter) => {
     }
 
     if (start != null && end != null) {
-      const foundRange = document.createRange();
+      const foundRange = new Range();
       foundRange.setStart(start.node, start.offset);
       foundRange.setEnd(end.node, end.offset); // Verify that |foundRange| is a subrange of |range|
 

@@ -44,7 +44,7 @@
       reportSuccess();
       return url;
     } else {
-      reportFailure();
+      reportFailure(result.status);
       return `Could not create URL ${result.status}`;
     }
   };
@@ -67,12 +67,19 @@
     return true;
   };
 
-  const reportFailure = () => {
+  const reportFailure = (status) => {
+    const statusCodes = {
+      1: 'INVALID_SELECTION: The selection provided could not be used.',
+      2: 'AMBIGUOUS: No unique fragment could be identified for this selection.',
+      3: 'TIMEOUT: Computation could not complete in time.',
+      4: 'EXECUTION_FAILED: Unknown error.',
+    };
+
     window.queueMicrotask(() => {
       alert(
           `🛑 ${browser.i18n.getMessage(
               'extension_name',
-          )}:\n${browser.i18n.getMessage('link_failure')}`,
+          )}:\n${browser.i18n.getMessage('link_failure')}\n\n(${statusCodes[status]})`,
       );
     });
     return true;
@@ -99,7 +106,7 @@
             };
             if (linkStyle === 'rich') {
               clipboardItems['text/html'] = new Blob(
-                  [`<a href="${encodeURI(url)}">${selection.toString()}</a>`],
+                  [`<a href="${url}">${selection.toString()}</a>`],
                   {
                     type: 'text/html',
                   },
@@ -116,7 +123,7 @@
                 html = container.innerHTML;
               }
               clipboardItems['text/html'] = new Blob(
-                  [`${html} <a href="${encodeURI(url)}">${items.linkText}</a>`],
+                  [`${html} <a href="${url}">${items.linkText}</a>`],
                   {type: 'text/html'},
               );
             }
