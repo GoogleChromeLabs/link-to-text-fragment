@@ -30,14 +30,14 @@
     if (result.status === 0) {
       const fragment = result.fragment;
       const prefix = fragment.prefix ?
-        `${encodeURIComponent(fragment.prefix)}-,` :
+        `${str_replace('-', '%2D', encodeURIComponent(fragment.prefix))}-,` :
         '';
       const suffix = fragment.suffix ?
-        `,-${encodeURIComponent(fragment.suffix)}` :
+        `,-${str_replace('-', '%2D', encodeURIComponent(fragment.suffix))}` :
         '';
-      const textStart = encodeURIComponent(fragment.textStart);
+      const textStart = str_replace('-', '%2D', encodeURIComponent(fragment.textStart));
       const textEnd = fragment.textEnd ?
-        `,${encodeURIComponent(fragment.textEnd)}` :
+        `,${str_replace('-', '%2D', encodeURIComponent(fragment.textEnd))}` :
         '';
       url = `${url}#:~:text=${prefix}${textStart}${textEnd}${suffix}`;
       copyToClipboard(url, selection);
