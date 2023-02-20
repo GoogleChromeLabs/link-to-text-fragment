@@ -132,7 +132,6 @@
             }
 
             const clipboardData = [new ClipboardItem(clipboardItems)];
-            /* global ClipboardItem */
             await navigator.clipboard.write(clipboardData);
           } catch (err) {
             const textArea = document.createElement('textarea');
