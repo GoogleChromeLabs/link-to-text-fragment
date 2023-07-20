@@ -1,11 +1,11 @@
 {
   "name": "link-to-text-fragment",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "Browser extension that allows for linking to arbitrary text fragments.",
   "scripts": {
     "fix": "npx prettier --write .",
     "lint": "npx eslint ./*.js --fix",
-    "prepare": "npm run fix && npm run lint && shx cp ./node_modules/text-fragments-polyfill/dist/text-fragments.js . && npx rollup ./node_modules/text-fragments-polyfill/src/fragment-generation-utils.js --dir . && npx babel ./fragment-generation-utils.js --out-file ./fragment-generation-utils.js --plugins @babel/plugin-transform-modules-commonjs",
+    "prepare": "npm run fix && npm run lint && npx rollup ./node_modules/text-fragments-polyfill/src/fragment-generation-utils.js --dir . && npx babel ./fragment-generation-utils.js --out-file ./fragment-generation-utils.js --plugins @babel/plugin-transform-modules-commonjs",
     "safari": "xcrun safari-web-extension-converter . --project-location ../safari-extensions/link-to-text-fragment --copy-resources --swift --force --bundle-identifier com.google.googlechromelabs.link-to-text-fragment"
   },
   "repository": {
@@ -24,16 +24,16 @@
   },
   "homepage": "https://github.com/GoogleChromeLabs/link-to-text-fragment#readme",
   "devDependencies": {
-    "@babel/cli": "^7.20.7",
-    "@babel/core": "^7.20.12",
-    "@babel/plugin-transform-modules-commonjs": "^7.20.11",
-    "@babel/preset-env": "^7.20.2",
-    "@babel/runtime-corejs3": "^7.20.13",
-    "core-js": "^3.28.0",
-    "eslint": "^8.34.0",
+    "@babel/cli": "^7.22.9",
+    "@babel/core": "^7.22.9",
+    "@babel/plugin-transform-modules-commonjs": "^7.22.5",
+    "@babel/preset-env": "^7.22.9",
+    "@babel/runtime-corejs3": "^7.22.6",
+    "core-js": "^3.31.1",
+    "eslint": "^8.45.0",
     "eslint-config-google": "^0.14.0",
-    "prettier": "^2.8.4",
-    "rollup": "^3.17.2",
+    "prettier": "^3.0.0",
+    "rollup": "^3.26.3",
     "shx": "^0.3.4",
     "text-fragments-polyfill": "5.5.0"
   },

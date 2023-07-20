@@ -96,53 +96,30 @@
         },
         async (items) => {
           const linkStyle = items.linkStyle;
-          // Try to use the Async Clipboard API with fallback to the legacy API.
-          try {
-            const {state} = await navigator.permissions.query({
-              name: 'clipboard-write',
-            });
-            if (state !== 'granted') {
-              throw new Error('Clipboard permission not granted');
+          // Send message to offscreen document
+          const selectedText = selection.toString();
+          const linkText = items.linkText;
+          let html = '';
+          if (selection.rangeCount) {
+            const container = document.createElement('div');
+            for (let i = 0, len = selection.rangeCount; i < len; ++i) {
+            // prettier-ignore
+              container.appendChild(
+                  selection.getRangeAt(i).cloneContents());
             }
-            const clipboardItems = {
-              'text/plain': new Blob([url], {type: 'text/plain'}),
-            };
-            if (linkStyle === 'rich') {
-              clipboardItems['text/html'] = new Blob(
-                  [`<a href="${url}">${selection.toString()}</a>`],
-                  {
-                    type: 'text/html',
-                  },
-              );
-            } else if (linkStyle === 'rich_plus_raw') {
-              let html = '';
-              if (selection.rangeCount) {
-                const container = document.createElement('div');
-                for (let i = 0, len = selection.rangeCount; i < len; ++i) {
-                // prettier-ignore
-                  container.appendChild(
-                      selection.getRangeAt(i).cloneContents());
-                }
-                html = container.innerHTML;
-              }
-              clipboardItems['text/html'] = new Blob(
-                  [`${html} <a href="${url}">${items.linkText}</a>`],
-                  {type: 'text/html'},
-              );
-            }
-
-            const clipboardData = [new ClipboardItem(clipboardItems)];
-            await navigator.clipboard.write(clipboardData);
-          } catch (err) {
-            const textArea = document.createElement('textarea');
-            document.body.append(textArea);
-            textArea.textContent = url;
-            textArea.select();
-            document.execCommand('copy');
-            textArea.remove();
+            html = container.innerHTML;
           }
-          log('🎉', url);
-          return true;
+          browser.runtime.sendMessage(
+              {
+                target: 'offscreen',
+                data: {linkStyle, url, selectedText, html, linkText},
+              },
+              (response) => {
+                if (response) {
+                  log('🎉', url);
+                }
+              },
+          );
         },
     );
   };

@@ -1,24 +1,27 @@
 {
   "name": "__MSG_extension_name__",
   "short_name": "__MSG_extension_short_name__",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "__MSG_extension_description__",
   "background": {
-    "scripts": [
-      "prepare.js",
-      "fragment-generation-utils.js",
-      "background_script.js"
-    ],
-    "persistent": false
+    "service_worker": "service_worker.js",
+    "type": "module"
   },
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
   },
-  "permissions": ["activeTab", "contextMenus", "clipboardWrite", "storage"],
-  "optional_permissions": ["http://*/*", "https://*/*"],
-  "browser_action": {},
-  "manifest_version": 2,
+  "action": {},
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "clipboardWrite",
+    "storage",
+    "scripting",
+    "offscreen"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "manifest_version": 3,
   "icons": {
     "16": "assets/16x16.png",
     "32": "assets/32x32.png",
@@ -29,7 +32,7 @@
     "1024": "assets/1024x1024.png"
   },
   "default_locale": "en",
-  "minimum_chrome_version": "80",
+  "minimum_chrome_version": "88",
   "commands": {
     "copy_link": {
       "description": "__MSG_copy_link__"
