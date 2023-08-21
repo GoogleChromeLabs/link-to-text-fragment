@@ -26,7 +26,7 @@
     const selection = window.getSelection();
     // eslint-disable-next-line no-undef
     const result = exports.generateFragment(selection);
-    let url = `${location.origin}${location.pathname}${location.search}`;
+    let url = `${location.origin}${location.pathname}${location.search}${location.hash ? location.hash : '#'}`;
     if (result.status === 0) {
       const fragment = result.fragment;
       const prefix = fragment.prefix ?
@@ -39,7 +39,7 @@
       const textEnd = fragment.textEnd ?
         `,${encodeURIComponent(fragment.textEnd)}` :
         '';
-      url = `${url}#:~:text=${prefix}${textStart}${textEnd}${suffix}`;
+      url = `${url}:~:text=${prefix}${textStart}${textEnd}${suffix}`;
       copyToClipboard(url, selection);
       reportSuccess();
       return url;
