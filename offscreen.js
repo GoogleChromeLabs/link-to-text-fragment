@@ -30,6 +30,7 @@ const copyLink = async (linkStyle, url, selectedText, html, linkText) => {
     const clipboardData = [new ClipboardItem(clipboardItems)];
     await navigator.clipboard.write(clipboardData);
   } catch (err) {
+    console.error(err.name, err.message);
     const textArea = document.createElement('textarea');
     document.body.append(textArea);
     textArea.textContent = url;

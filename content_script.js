@@ -26,7 +26,9 @@
     const selection = window.getSelection();
     // eslint-disable-next-line no-undef
     const result = exports.generateFragment(selection);
-    let url = `${location.origin}${location.pathname}${location.search}${location.hash ? location.hash : '#'}`;
+    let url = `${location.origin}${location.pathname}${location.search}${
+      location.hash ? location.hash : '#'
+    }`;
     if (result.status === 0) {
       const fragment = result.fragment;
       const prefix = fragment.prefix ?
