@@ -24,23 +24,23 @@
 
   const createTextFragment = () => {
     const selection = window.getSelection();
-    // eslint-disable-next-line no-undef
+
     const result = exports.generateFragment(selection);
     let url = `${location.origin}${location.pathname}${location.search}${
       location.hash ? location.hash : '#'
     }`;
     if (result.status === 0) {
       const fragment = result.fragment;
-      const prefix = fragment.prefix ?
-        `${encodeURIComponent(fragment.prefix)}-,` :
-        '';
-      const suffix = fragment.suffix ?
-        `,-${encodeURIComponent(fragment.suffix)}` :
-        '';
+      const prefix = fragment.prefix
+        ? `${encodeURIComponent(fragment.prefix)}-,`
+        : '';
+      const suffix = fragment.suffix
+        ? `,-${encodeURIComponent(fragment.suffix)}`
+        : '';
       const textStart = encodeURIComponent(fragment.textStart);
-      const textEnd = fragment.textEnd ?
-        `,${encodeURIComponent(fragment.textEnd)}` :
-        '';
+      const textEnd = fragment.textEnd
+        ? `,${encodeURIComponent(fragment.textEnd)}`
+        : '';
       url = `${url}:~:text=${prefix}${textStart}${textEnd}${suffix}`;
       copyToClipboard(url, selection);
       reportSuccess();
@@ -72,7 +72,7 @@
   const reportFailure = (status) => {
     const statusCodes = {
       1: 'INVALID_SELECTION: The selection provided could not be used.',
-      // eslint-disable-next-line max-len
+
       2: 'AMBIGUOUS: No unique fragment could be identified for this selection.',
       3: 'TIMEOUT: Computation could not complete in time.',
       4: 'EXECUTION_FAILED: Unknown error.',
@@ -80,11 +80,11 @@
 
     window.queueMicrotask(() => {
       alert(
-          `🛑 ${browser.i18n.getMessage(
-              'extension_name',
-          )}:\n${browser.i18n.getMessage('link_failure')}\n\n(${
-            statusCodes[status]
-          })`,
+        `🛑 ${browser.i18n.getMessage(
+          'extension_name'
+        )}:\n${browser.i18n.getMessage('link_failure')}\n\n(${
+          statusCodes[status]
+        })`
       );
     });
     return true;
@@ -92,37 +92,37 @@
 
   const copyToClipboard = (url, selection) => {
     browser.storage.sync.get(
-        {
-          linkStyle: 'rich',
-          linkText: browser.i18n.getMessage('link_text_option_1'),
-        },
-        async (items) => {
-          const linkStyle = items.linkStyle;
-          // Send message to offscreen document
-          const selectedText = selection.toString();
-          const linkText = items.linkText;
-          let html = '';
-          if (selection.rangeCount) {
-            const container = document.createElement('div');
-            for (let i = 0, len = selection.rangeCount; i < len; ++i) {
+      {
+        linkStyle: 'rich',
+        linkText: browser.i18n.getMessage('link_text_option_1'),
+      },
+      async (items) => {
+        const linkStyle = items.linkStyle;
+        // Send message to offscreen document
+        const selectedText = selection.toString();
+        const linkText = items.linkText;
+        let html = '';
+        if (selection.rangeCount) {
+          const container = document.createElement('div');
+          for (let i = 0, len = selection.rangeCount; i < len; ++i) {
             // prettier-ignore
-              container.appendChild(
+            container.appendChild(
                   selection.getRangeAt(i).cloneContents());
-            }
-            html = container.innerHTML;
           }
-          browser.runtime.sendMessage(
-              {
-                target: 'offscreen',
-                data: {linkStyle, url, selectedText, html, linkText},
-              },
-              (response) => {
-                if (response) {
-                  log('🎉', url);
-                }
-              },
-          );
-        },
+          html = container.innerHTML;
+        }
+        browser.runtime.sendMessage(
+          {
+            target: 'offscreen',
+            data: { linkStyle, url, selectedText, html, linkText },
+          },
+          (response) => {
+            if (response) {
+              log('🎉', url);
+            }
+          }
+        );
+      }
     );
   };
 
@@ -136,5 +136,4 @@
       return sendResponse('pong');
     }
   });
-  // eslint-disable-next-line no-undef
 })(chrome || browser);

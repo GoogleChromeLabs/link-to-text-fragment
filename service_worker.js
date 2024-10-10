@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// eslint-disable-next-line no-undef
 const browser = chrome || browser;
 const DEBUG = false;
 
@@ -27,7 +26,6 @@ const setupOffscreenDocument = async (path) => {
   // of them is the offscreen document with the given path
   const offscreenUrl = browser.runtime.getURL(path);
 
-  // eslint-disable-next-line no-undef
   const matchedClients = await clients.matchAll();
   for (const client of matchedClients) {
     if (client.url === offscreenUrl) {
@@ -63,48 +61,48 @@ const injectContentScripts = async (contentScriptNames) => {
     return await sendMessageToPage('ping');
   } catch (err) {
     await Promise.all(
-        contentScriptNames.map((contentScriptName) => {
-          return new Promise((resolve) => {
-            browser.tabs.query(
+      contentScriptNames.map((contentScriptName) => {
+        return new Promise((resolve) => {
+          browser.tabs.query(
+            {
+              active: true,
+              currentWindow: true,
+            },
+            (tabs) => {
+              browser.scripting.executeScript(
                 {
-                  active: true,
-                  currentWindow: true,
+                  files: [contentScriptName],
+                  target: {
+                    tabId: tabs[0].id,
+                  },
                 },
-                (tabs) => {
-                  browser.scripting.executeScript(
-                      {
-                        files: [contentScriptName],
-                        target: {
-                          tabId: tabs[0].id,
-                        },
-                      },
-                      () => {
-                        log('Injected content script', contentScriptName);
-                        return resolve();
-                      },
-                  );
-                },
-            );
-          });
-        }),
+                () => {
+                  log('Injected content script', contentScriptName);
+                  return resolve();
+                }
+              );
+            }
+          );
+        });
+      })
     );
   }
 };
 
 browser.contextMenus.create(
-    {
-      title: browser.i18n.getMessage('copy_link'),
-      id: 'copy-link',
-      contexts: ['selection'],
-    },
-    () => {
-      if (browser.runtime.lastError) {
-        console.log(
-            'Error creating context menu item:',
-            browser.runtime.lastError,
-        );
-      }
-    },
+  {
+    title: browser.i18n.getMessage('copy_link'),
+    id: 'copy-link',
+    contexts: ['selection'],
+  },
+  () => {
+    if (browser.runtime.lastError) {
+      console.log(
+        'Error creating context menu item:',
+        browser.runtime.lastError
+      );
+    }
+  }
 );
 
 browser.commands.onCommand.addListener(async (command) => {
@@ -115,13 +113,13 @@ browser.commands.onCommand.addListener(async (command) => {
       'content_script.js',
     ]);
     browser.tabs.query(
-        {
-          active: true,
-          currentWindow: true,
-        },
-        (tabs) => {
-          startProcessing(tabs[0]);
-        },
+      {
+        active: true,
+        currentWindow: true,
+      },
+      (tabs) => {
+        startProcessing(tabs[0]);
+      }
     );
   }
 });
@@ -139,27 +137,27 @@ const startProcessing = async (tab) => {
 const sendMessageToPage = (message, data = null) => {
   return new Promise((resolve, reject) => {
     browser.tabs.query(
-        {
-          active: true,
-          currentWindow: true,
-        },
-        (tabs) => {
-          browser.tabs.sendMessage(
-              tabs[0].id,
-              {
-                message,
-                data,
-              },
-              (response) => {
-                if (!response) {
-                  return reject(
-                      new Error('Failed to connect to the specified tab.'),
-                  );
-                }
-                return resolve(response);
-              },
-          );
-        },
+      {
+        active: true,
+        currentWindow: true,
+      },
+      (tabs) => {
+        browser.tabs.sendMessage(
+          tabs[0].id,
+          {
+            message,
+            data,
+          },
+          (response) => {
+            if (!response) {
+              return reject(
+                new Error('Failed to connect to the specified tab.')
+              );
+            }
+            return resolve(response);
+          }
+        );
+      }
     );
   });
 };
