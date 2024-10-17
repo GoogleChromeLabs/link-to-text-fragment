@@ -5,6 +5,7 @@
   "description": "__MSG_extension_description__",
   "background": {
     "service_worker": "service_worker.js",
+    "scripts": ["service_worker.js"],
     "type": "module"
   },
   "options_ui": {
