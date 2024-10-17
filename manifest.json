@@ -38,5 +38,10 @@
     "copy_link": {
       "description": "__MSG_copy_link__"
     }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "link-to-text-fragment@google.com"
+    }
   }
 }
