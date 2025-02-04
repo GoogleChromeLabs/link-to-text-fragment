@@ -266,6 +266,26 @@ const makeTextNodeWalker = range => {
 };
 
 /**
+ * Helper function to check if the element has attribute `hidden="until-found"`.
+ * @param {Element} node - the element to evaluate
+ * @return {Boolean} - true if the element has attribute `hidden="until-found"`
+ */
+const isHiddenUntilFound = elt => {
+  if (elt.hidden === 'until-found') {
+    return true;
+  }
+  // Workaround for WebKit. See https://bugs.webkit.org/show_bug.cgi?id=238266
+  const attributes = elt.attributes;
+  if (attributes && attributes['hidden']) {
+    const value = attributes['hidden'].value;
+    if (value === 'until-found') {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
  * Helper function to calculate the visibility of a Node based on its CSS
  * computed style. This function does not take into account the visibility of
  * the node's ancestors so even if the node is visible according to its style
@@ -283,6 +303,9 @@ const isNodeVisible = node => {
   let elt = node;
   while (elt != null && !(elt instanceof HTMLElement)) elt = elt.parentNode;
   if (elt != null) {
+    if (isHiddenUntilFound(elt)) {
+      return true;
+    }
     const nodeStyle = window.getComputedStyle(elt);
     // If the node is not rendered, just skip it.
     if (nodeStyle.visibility === 'hidden' || nodeStyle.display === 'none' || parseInt(nodeStyle.height, 10) === 0 || parseInt(nodeStyle.width, 10) === 0 || parseInt(nodeStyle.opacity, 10) === 0) {
