@@ -75,7 +75,7 @@
       1: 'INVALID_SELECTION: ❌ The selected text is too short or does not contain enough unique words. Please choose a longer or more specific phrase.',
       2: 'AMBIGUOUS: ❌ The selected text appears multiple times on this page. Please select a more unique phrase to create an accurate link.',
       3: 'TIMEOUT: ⏳ The process took too long. This may be due to a large page size or slow browser performance. Try selecting a shorter text segment or reloading the page.',
-      4: 'EXECUTION_FAILED: ⚠️An unexpected error occurred while generating the link. Please refresh the page and try again.',
+      4: 'EXECUTION_FAILED: ⚠️ An unexpected error occurred while generating the link.',
     };
 
     window.queueMicrotask(() => {
