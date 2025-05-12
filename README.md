@@ -9,9 +9,9 @@
 You can install the extension in your browser of choice:
 
 - Google Chrome: [Link to Text Fragment extension](https://chrome.google.com/webstore/detail/link-to-text-fragment/pbcodcjpfjdpcineamnnmbkkmkdpajjg)
-- Microsoft Edge: [Link to Text Fragment extension](https://microsoftedge.microsoft.com/addons/detail/link-to-text-fragment/pmdldpbcbobaamgkpkghjigngamlolag)
-- Mozilla Firefox: [Link to Text Fragment extension](https://addons.mozilla.org/firefox/addon/link-to-text-fragment/)
-- Apple Safari: [Link to Text Fragment extension](https://apps.apple.com/app/link-to-text-fragment/id1532224396?l=en&mt=12)
+- ~Microsoft Edge: Link to Text Fragment extension~ (No longer supported.)
+- ~Mozilla Firefox: Link to Text Fragment extension~ (No longer supported.)
+- ~Apple Safari: Link to Text Fragment extension~ (No longer supported.)
 
 ## Usage
 
