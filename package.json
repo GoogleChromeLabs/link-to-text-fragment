@@ -34,7 +34,7 @@
     "eslint": "^9.19.0",
     "eslint-config-google": "^0.14.0",
     "prettier": "^3.4.2",
-    "rollup": "^4.34.2",
+    "rollup": "^4.59.0",
     "shx": "^0.3.4",
     "text-fragments-polyfill": "6.3.0"
   },
